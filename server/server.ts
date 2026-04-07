@@ -55,7 +55,7 @@ export function createServer(): McpServer {
             .string()
             .optional()
             .describe("Brief context shown below the title"),
-          fields: z.array(z.record(z.unknown())).describe("Array of field definitions"),
+          fields: z.array(z.record(z.string(), z.unknown())).describe("Array of field definitions"),
         })
         .describe("The form schema defining what fields to render"),
     },
