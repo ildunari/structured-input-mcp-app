@@ -643,345 +643,301 @@ textarea.text-input { resize: vertical; min-height: 80px; }
 <body>
 
 <div class="form-shell" id="formApp">
-  <!-- Single scrollable area — no separate header/footer -->
-  <div class="form-body">
-
-    <!-- Inline header -->
-    <div class="form-header">
-      <h1 class="form-title">Configure Your Project</h1>
-      <p class="form-description">Set up parameters for your project.</p>
-    </div>
-
-    <!-- 1. Text -->
-    <div class="field-group">
-      <label class="field-label">Project Name <span class="req">*</span></label>
-      <input type="text" class="text-input" id="f-name" placeholder="e.g. My Cool Project" maxlength="100">
-    </div>
-
-    <!-- 2. Long Text -->
-    <div class="field-group">
-      <label class="field-label">Description</label>
-      <p class="field-desc">A brief overview of what this project does.</p>
-      <textarea class="text-input" id="f-desc" placeholder="Tell us about your project..." rows="3"></textarea>
-    </div>
-
-    <!-- 3. Number -->
-    <div class="field-group">
-      <label class="field-label">Max Iterations</label>
-      <div class="num-row">
-        <input type="number" class="num-input" id="f-iter" value="10" min="1" max="100" step="1">
-        <span class="num-unit">iterations</span>
-      </div>
-    </div>
-
-    <div class="section-divider">Parameters</div>
-
-    <!-- 4. Slider -->
-    <div class="field-group">
-      <label class="field-label">Temperature</label>
-      <p class="field-desc">Lower is focused, higher is creative.</p>
-      <div class="slider-wrap" id="slider-temp">
-        <div class="slider-track" data-min="0" data-max="2" data-step="0.1">
-          <div class="slider-fill" style="width:35%"></div>
-          <div class="slider-thumb" style="left:35%"></div>
-        </div>
-        <input type="number" class="slider-val" value="0.7" min="0" max="2" step="0.1">
-      </div>
-    </div>
-
-    <!-- 5. Range Slider -->
-    <div class="field-group">
-      <label class="field-label">Token Range</label>
-      <p class="field-desc">Min and max output tokens.</p>
-      <div class="range-wrap" id="range-tokens">
-        <div class="slider-track" data-min="0" data-max="4096" data-step="64">
-          <div class="slider-fill" style="left:12.5%;width:50%"></div>
-          <div class="slider-thumb" style="left:12.5%" data-role="min"></div>
-          <div class="slider-thumb" style="left:62.5%" data-role="max"></div>
-        </div>
-        <div class="range-labels">
-          <span id="rl-min">512</span>
-          <span id="rl-max">2560</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-divider">Selection</div>
-
-    <!-- 6. Single-Select Chips -->
-    <div class="field-group">
-      <label class="field-label">Model <span class="req">*</span></label>
-      <div class="chips" id="chips-model" data-mode="single">
-        <div class="chip" data-value="haiku">Haiku</div>
-        <div class="chip sel" data-value="sonnet">Sonnet</div>
-        <div class="chip" data-value="opus">Opus</div>
-      </div>
-    </div>
-
-    <!-- 7. Multi-Select Chips -->
-    <div class="field-group">
-      <label class="field-label">Capabilities</label>
-      <p class="field-desc">Select all that apply.</p>
-      <div class="chips" id="chips-caps" data-mode="multi">
-        <div class="chip sel" data-value="code">Code</div>
-        <div class="chip" data-value="vision">Vision</div>
-        <div class="chip sel" data-value="tools">Tools</div>
-        <div class="chip" data-value="search">Search</div>
-        <div class="chip" data-value="artifacts">Artifacts</div>
-      </div>
-    </div>
-
-    <!-- 8. Checklist -->
-    <div class="field-group">
-      <label class="field-label">Files to Include</label>
-      <div class="plate">
-        <div class="cl-header">
-          <span>Source Files</span>
-          <button class="cl-action" onclick="toggleGroup(this)">Select all</button>
-        </div>
-        <ul class="checklist" id="cl-files">
-          <li class="cl-item on" data-id="main" onclick="toggleCl(this)">
-            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            <span class="cl-label">main.ts</span>
-            <span class="cl-meta">2.4 KB</span>
-          </li>
-          <li class="cl-item" data-id="config" onclick="toggleCl(this)">
-            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            <span class="cl-label">config.json</span>
-            <span class="cl-meta">860 B</span>
-          </li>
-          <li class="cl-item on" data-id="utils" onclick="toggleCl(this)">
-            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            <span class="cl-label">utils.ts</span>
-            <span class="cl-meta">1.1 KB</span>
-          </li>
-          <li class="cl-item" data-id="readme" onclick="toggleCl(this)">
-            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            <span class="cl-label">README.md</span>
-            <span class="cl-meta">3.2 KB</span>
-          </li>
-          <li class="cl-item" data-id="tests" onclick="toggleCl(this)">
-            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            <span class="cl-label">tests/index.test.ts</span>
-            <span class="cl-meta">1.8 KB</span>
-          </li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- 9. Ranked List -->
-    <div class="field-group">
-      <label class="field-label">Priority Order</label>
-      <p class="field-desc">Drag to reorder.</p>
-      <ul class="ranked" id="ranked-list">
-        <li class="ranked-item" data-id="perf" draggable="true">
-          <div class="drag-handle"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg></div>
-          <div class="rank-num">1</div>
-          <span class="ranked-label">Performance</span>
-          <button class="ranked-rm" onclick="removeRank(this)"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg></button>
-        </li>
-        <li class="ranked-item" data-id="safety" draggable="true">
-          <div class="drag-handle"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg></div>
-          <div class="rank-num">2</div>
-          <span class="ranked-label">Safety</span>
-          <button class="ranked-rm" onclick="removeRank(this)"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg></button>
-        </li>
-        <li class="ranked-item" data-id="cost" draggable="true">
-          <div class="drag-handle"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg></div>
-          <div class="rank-num">3</div>
-          <span class="ranked-label">Cost Efficiency</span>
-          <button class="ranked-rm" onclick="removeRank(this)"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg></button>
-        </li>
-        <li class="ranked-item" data-id="latency" draggable="true">
-          <div class="drag-handle"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg></div>
-          <div class="rank-num">4</div>
-          <span class="ranked-label">Latency</span>
-          <button class="ranked-rm" onclick="removeRank(this)"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg></button>
-        </li>
-      </ul>
-    </div>
-
-    <div class="section-divider">Preferences</div>
-
-    <!-- 10. Rating -->
-    <div class="field-group">
-      <label class="field-label">Importance</label>
-      <div class="rating" id="rating">
-        <svg class="star on" data-v="1" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <svg class="star on" data-v="2" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <svg class="star on" data-v="3" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <svg class="star" data-v="4" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <svg class="star" data-v="5" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <span class="rating-lbl">3/5</span>
-      </div>
-    </div>
-
-    <!-- 11. Color -->
-    <div class="field-group">
-      <label class="field-label">Theme Colors</label>
-      <div class="color-group">
-        <div class="color-role">Primary</div>
-        <div class="swatches" data-role="primary">
-          <div class="swatch sel" style="background:#c96442" data-c="#c96442" onclick="pickSwatch(this)"></div>
-          <div class="swatch" style="background:#3898ec" data-c="#3898ec" onclick="pickSwatch(this)"></div>
-          <div class="swatch" style="background:#5e5d59" data-c="#5e5d59" onclick="pickSwatch(this)"></div>
-          <div class="swatch" style="background:#27ae60" data-c="#27ae60" onclick="pickSwatch(this)"></div>
-          <div class="swatch" style="background:#7c3aed" data-c="#7c3aed" onclick="pickSwatch(this)"></div>
-        </div>
-        <input type="text" class="hex-in" value="#c96442" placeholder="#hex">
-      </div>
-      <div class="color-group">
-        <div class="color-role">Background</div>
-        <div class="swatches" data-role="bg">
-          <div class="swatch sel" style="background:#f5f4ed" data-c="#f5f4ed" onclick="pickSwatch(this)"></div>
-          <div class="swatch" style="background:#ffffff" data-c="#ffffff" onclick="pickSwatch(this)"></div>
-          <div class="swatch" style="background:#141413" data-c="#141413" onclick="pickSwatch(this)"></div>
-          <div class="swatch" style="background:#1e293b" data-c="#1e293b" onclick="pickSwatch(this)"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 12. Date -->
-    <div class="field-group">
-      <label class="field-label">Start Date</label>
-      <input type="date" class="date-input" id="f-date" value="2026-04-07">
-    </div>
-
-    <!-- 13. Date Range -->
-    <div class="field-group">
-      <label class="field-label">Active Period</label>
-      <div class="date-range">
-        <input type="date" class="date-input" id="f-ds" value="2026-04-07">
-        <span class="date-sep">to</span>
-        <input type="date" class="date-input" id="f-de" value="2026-05-07">
-      </div>
-    </div>
-
-    <!-- 14. Boolean -->
-    <div class="field-group">
-      <div class="toggle-row">
-        <div class="toggle on" id="t-stream" onclick="tog(this)"><div class="toggle-knob"></div></div>
-        <span class="toggle-text">Enable streaming</span>
-      </div>
-    </div>
-    <div class="field-group">
-      <div class="toggle-row">
-        <div class="toggle" id="t-cache" onclick="tog(this)"><div class="toggle-knob"></div></div>
-        <span class="toggle-text">Use prompt cache</span>
-      </div>
-    </div>
-
-    <!-- 15. Confirm -->
-    <div class="field-group">
-      <label class="field-label">Confirm Deployment</label>
-      <div class="confirm">
-        <div class="confirm-title">Deploy to Production?</div>
-        <div class="confirm-preview">
-          <div class="cp-row"><span class="cp-key">Environment</span><span class="cp-val">production</span></div>
-          <div class="cp-row"><span class="cp-key">Model</span><span class="cp-val">Sonnet</span></div>
-          <div class="cp-row"><span class="cp-key">Region</span><span class="cp-val">us-east-1</span></div>
-          <div class="cp-row"><span class="cp-key">Replicas</span><span class="cp-val">3</span></div>
-        </div>
-        <div class="confirm-btns">
-          <button class="btn btn-danger" onclick="toast('Deployment confirmed')">Confirm Deploy</button>
-          <button class="btn btn-ghost" onclick="toast('Deployment cancelled')">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /form-body -->
+  <div class="form-body" id="formBody"></div>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script>
-// Chips
-document.querySelectorAll('.chips').forEach(c => {
-  c.querySelectorAll('.chip').forEach(ch => {
-    ch.addEventListener('click', () => {
-      if (c.dataset.mode === 'single') {
-        c.querySelectorAll('.chip').forEach(x => x.classList.remove('sel'));
-        ch.classList.add('sel');
-      } else ch.classList.toggle('sel');
+// ===== SVG ICONS =====
+const ICONS = {
+  check: '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  drag: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg>',
+  close: '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>',
+  star: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
+};
+
+// ===== STATE =====
+const state = {};
+
+// ===== FIELD RENDERERS =====
+const R = {
+  text(f) {
+    const inp = el('input', { type: 'text', className: 'text-input', id: 'f-' + f.id, placeholder: f.placeholder || '', maxLength: f.maxLength || '' });
+    if (f.default) inp.value = f.default;
+    state[f.id] = () => inp.value;
+    return inp;
+  },
+
+  longtext(f) {
+    const ta = el('textarea', { className: 'text-input', id: 'f-' + f.id, placeholder: f.placeholder || '', rows: f.rows || 3 });
+    if (f.default) ta.value = f.default;
+    state[f.id] = () => ta.value;
+    return ta;
+  },
+
+  number(f) {
+    const wrap = el('div', { className: 'num-row' });
+    const inp = el('input', { type: 'number', className: 'num-input', id: 'f-' + f.id, min: f.min ?? '', max: f.max ?? '', step: f.step ?? 1, value: f.default ?? '' });
+    wrap.appendChild(inp);
+    if (f.unit) wrap.appendChild(el('span', { className: 'num-unit', textContent: f.unit }));
+    state[f.id] = () => inp.value === '' ? null : +inp.value;
+    return wrap;
+  },
+
+  slider(f) {
+    const mn = f.min, mx = f.max, st = f.step || 1;
+    const def = f.default ?? mn;
+    const pct = ((def - mn) / (mx - mn)) * 100;
+    const wrap = el('div', { className: 'slider-wrap' });
+    const track = el('div', { className: 'slider-track' });
+    track.dataset.min = mn; track.dataset.max = mx; track.dataset.step = st;
+    const fill = el('div', { className: 'slider-fill' }); fill.style.width = pct + '%';
+    const thumb = el('div', { className: 'slider-thumb' }); thumb.style.left = pct + '%';
+    track.append(fill, thumb);
+    const vi = el('input', { type: 'number', className: 'slider-val', min: mn, max: mx, step: st, value: def.toFixed(st < 1 ? 1 : 0) });
+    wrap.append(track, vi);
+    initSlider(wrap);
+    state[f.id] = () => +vi.value;
+    return wrap;
+  },
+
+  range(f) {
+    const mn = f.min, mx = f.max, st = f.step || 1;
+    const defs = f.default || [mn + (mx - mn) * 0.25, mn + (mx - mn) * 0.75];
+    const p0 = ((defs[0] - mn) / (mx - mn)) * 100, p1 = ((defs[1] - mn) / (mx - mn)) * 100;
+    const wrap = el('div', { className: 'range-wrap' });
+    const track = el('div', { className: 'slider-track' });
+    track.dataset.min = mn; track.dataset.max = mx; track.dataset.step = st;
+    const fill = el('div', { className: 'slider-fill' }); fill.style.left = p0 + '%'; fill.style.width = (p1 - p0) + '%';
+    const t0 = el('div', { className: 'slider-thumb' }); t0.style.left = p0 + '%'; t0.dataset.role = 'min';
+    const t1 = el('div', { className: 'slider-thumb' }); t1.style.left = p1 + '%'; t1.dataset.role = 'max';
+    track.append(fill, t0, t1);
+    const labels = el('div', { className: 'range-labels' });
+    const lMin = el('span', { textContent: Math.round(defs[0]) });
+    const lMax = el('span', { textContent: Math.round(defs[1]) });
+    labels.append(lMin, lMax);
+    wrap.append(track, labels);
+    initRange(wrap, defs, lMin, lMax);
+    state[f.id] = () => ({ min: +lMin.textContent, max: +lMax.textContent });
+    return wrap;
+  },
+
+  'single-select'(f) {
+    const wrap = el('div', { className: 'chips' }); wrap.dataset.mode = 'single';
+    f.options.forEach(o => {
+      const c = el('div', { className: 'chip' + (f.default === o.value ? ' sel' : ''), textContent: o.label });
+      c.dataset.value = o.value;
+      c.addEventListener('click', () => { wrap.querySelectorAll('.chip').forEach(x => x.classList.remove('sel')); c.classList.add('sel'); });
+      wrap.appendChild(c);
     });
-  });
-});
+    state[f.id] = () => wrap.querySelector('.sel')?.dataset.value ?? null;
+    return wrap;
+  },
 
-// Checklist
-function toggleCl(el) { el.classList.toggle('on'); }
-function toggleGroup(btn) {
-  const plate = btn.closest('.plate');
-  const items = plate.querySelectorAll('.cl-item');
-  const allOn = [...items].every(i => i.classList.contains('on'));
-  items.forEach(i => allOn ? i.classList.remove('on') : i.classList.add('on'));
-  btn.textContent = allOn ? 'Select all' : 'Deselect all';
-}
-
-// Rating
-function setRate(s) {
-  const v = +s.dataset.v;
-  const c = s.closest('.rating');
-  c.querySelectorAll('.star').forEach(x => x.classList.toggle('on', +x.dataset.v <= v));
-  c.querySelector('.rating-lbl').textContent = v + '/5';
-}
-document.querySelectorAll('.rating').forEach(c => {
-  c.querySelectorAll('.star').forEach(s => {
-    s.addEventListener('mouseenter', () => {
-      const v = +s.dataset.v;
-      c.querySelectorAll('.star').forEach(x => x.classList.toggle('hover', +x.dataset.v <= v));
+  'multi-select'(f) {
+    const defs = f.default || [];
+    const wrap = el('div', { className: 'chips' }); wrap.dataset.mode = 'multi';
+    f.options.forEach(o => {
+      const c = el('div', { className: 'chip' + (defs.includes(o.value) ? ' sel' : ''), textContent: o.label });
+      c.dataset.value = o.value;
+      c.addEventListener('click', () => c.classList.toggle('sel'));
+      wrap.appendChild(c);
     });
-  });
-  c.addEventListener('mouseleave', () => c.querySelectorAll('.star').forEach(x => x.classList.remove('hover')));
-});
+    state[f.id] = () => [...wrap.querySelectorAll('.sel')].map(c => c.dataset.value);
+    return wrap;
+  },
 
-// Toggle
-function tog(el) { el.classList.toggle('on'); }
+  checklist(f) {
+    const defs = f.default || [];
+    const plate = el('div', { className: 'plate' });
+    // Group items
+    const groups = {};
+    f.items.forEach(it => { const g = it.group || ''; (groups[g] = groups[g] || []).push(it); });
+    Object.entries(groups).forEach(([gName, items]) => {
+      if (gName || f.showSelectAll) {
+        const hdr = el('div', { className: 'cl-header' });
+        hdr.appendChild(el('span', { textContent: gName || 'Items' }));
+        if (f.showSelectAll) {
+          const btn = el('button', { className: 'cl-action', textContent: 'Select all' });
+          btn.addEventListener('click', () => {
+            const lis = plate.querySelectorAll('.cl-item');
+            const allOn = [...lis].every(l => l.classList.contains('on'));
+            lis.forEach(l => allOn ? l.classList.remove('on') : l.classList.add('on'));
+            btn.textContent = allOn ? 'Select all' : 'Deselect all';
+          });
+          hdr.appendChild(btn);
+        }
+        plate.appendChild(hdr);
+      }
+      const ul = el('ul', { className: 'checklist' });
+      items.forEach(it => {
+        const li = el('li', { className: 'cl-item' + (defs.includes(it.id) ? ' on' : '') });
+        li.dataset.id = it.id;
+        li.addEventListener('click', () => li.classList.toggle('on'));
+        const box = el('div', { className: 'cl-box' }); box.innerHTML = ICONS.check;
+        li.appendChild(box);
+        li.appendChild(el('span', { className: 'cl-label', textContent: it.label }));
+        if (it.preview) li.appendChild(el('span', { className: 'cl-meta', textContent: it.preview }));
+        ul.appendChild(li);
+      });
+      plate.appendChild(ul);
+    });
+    state[f.id] = () => [...plate.querySelectorAll('.cl-item.on')].map(l => l.dataset.id);
+    return plate;
+  },
 
-// Color
-function pickSwatch(s) {
-  const g = s.closest('.swatches');
-  g.querySelectorAll('.swatch').forEach(x => x.classList.remove('sel'));
-  s.classList.add('sel');
-  const hex = s.closest('.color-group')?.querySelector('.hex-in');
-  if (hex) hex.value = s.dataset.c;
+  ranked(f) {
+    const ul = el('ul', { className: 'ranked' });
+    f.items.forEach((it, i) => {
+      const li = el('li', { className: 'ranked-item' + (it.locked ? ' locked' : '') });
+      li.dataset.id = it.id;
+      if (!it.locked) li.draggable = true;
+      const handle = el('div', { className: 'drag-handle' }); handle.innerHTML = ICONS.drag;
+      const num = el('div', { className: 'rank-num', textContent: i + 1 });
+      const label = el('span', { className: 'ranked-label', textContent: it.label });
+      li.append(handle, num, label);
+      if (f.removable && !it.locked) {
+        const rm = el('button', { className: 'ranked-rm' }); rm.innerHTML = ICONS.close;
+        rm.addEventListener('click', () => { li.remove(); renum(ul); });
+        li.appendChild(rm);
+      }
+      ul.appendChild(li);
+    });
+    initDrag(ul);
+    state[f.id] = () => [...ul.querySelectorAll('.ranked-item')].map(l => l.dataset.id);
+    return ul;
+  },
+
+  rating(f) {
+    const max = f.max || 5;
+    const def = f.default || 0;
+    const wrap = el('div', { className: 'rating' });
+    const lbl = el('span', { className: 'rating-lbl', textContent: def + '/' + max });
+    for (let i = 1; i <= max; i++) {
+      const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      s.setAttribute('viewBox', '0 0 24 24');
+      s.classList.add('star');
+      if (i <= def) s.classList.add('on');
+      s.dataset.v = i;
+      s.innerHTML = ICONS.star;
+      s.addEventListener('click', () => {
+        const v = +s.dataset.v;
+        wrap.querySelectorAll('.star').forEach(x => x.classList.toggle('on', +x.dataset.v <= v));
+        lbl.textContent = v + '/' + max;
+      });
+      s.addEventListener('mouseenter', () => {
+        const v = +s.dataset.v;
+        wrap.querySelectorAll('.star').forEach(x => x.classList.toggle('hover', +x.dataset.v <= v));
+      });
+      wrap.appendChild(s);
+    }
+    wrap.addEventListener('mouseleave', () => wrap.querySelectorAll('.star').forEach(x => x.classList.remove('hover')));
+    wrap.appendChild(lbl);
+    state[f.id] = () => wrap.querySelectorAll('.star.on').length;
+    return wrap;
+  },
+
+  color(f) {
+    const frag = document.createDocumentFragment();
+    f.roles.forEach(role => {
+      const group = el('div', { className: 'color-group' });
+      group.appendChild(el('div', { className: 'color-role', textContent: role.label }));
+      const sw = el('div', { className: 'swatches' }); sw.dataset.role = role.role;
+      role.swatches.forEach((hex, i) => {
+        const s = el('div', { className: 'swatch' + (i === 0 ? ' sel' : '') });
+        s.style.background = hex; s.dataset.c = hex;
+        s.addEventListener('click', () => {
+          sw.querySelectorAll('.swatch').forEach(x => x.classList.remove('sel'));
+          s.classList.add('sel');
+          const hi = group.querySelector('.hex-in');
+          if (hi) hi.value = hex;
+        });
+        sw.appendChild(s);
+      });
+      group.appendChild(sw);
+      if (role.allowCustom) {
+        const hi = el('input', { type: 'text', className: 'hex-in', value: role.swatches[0] || '', placeholder: '#hex' });
+        group.appendChild(hi);
+      }
+      frag.appendChild(group);
+      state[f.id + '.' + role.role] = () => sw.querySelector('.sel')?.dataset.c || group.querySelector('.hex-in')?.value || null;
+    });
+    // Aggregate getter
+    state[f.id] = () => {
+      const out = {};
+      f.roles.forEach(r => { out[r.role] = state[f.id + '.' + r.role](); });
+      return out;
+    };
+    return frag;
+  },
+
+  date(f) {
+    const inp = el('input', { type: 'date', className: 'date-input', id: 'f-' + f.id, value: f.default || '' });
+    state[f.id] = () => inp.value || null;
+    return inp;
+  },
+
+  'date-range'(f) {
+    const defs = f.default || {};
+    const wrap = el('div', { className: 'date-range' });
+    const ds = el('input', { type: 'date', className: 'date-input', value: defs.start || '' });
+    const sep = el('span', { className: 'date-sep', textContent: 'to' });
+    const de = el('input', { type: 'date', className: 'date-input', value: defs.end || '' });
+    wrap.append(ds, sep, de);
+    state[f.id] = () => ({ start: ds.value || null, end: de.value || null });
+    return wrap;
+  },
+
+  boolean(f) {
+    const wrap = el('div', { className: 'toggle-row' });
+    const tog = el('div', { className: 'toggle' + (f.default ? ' on' : '') });
+    tog.appendChild(el('div', { className: 'toggle-knob' }));
+    tog.addEventListener('click', () => tog.classList.toggle('on'));
+    wrap.append(tog, el('span', { className: 'toggle-text', textContent: f.label }));
+    state[f.id] = () => tog.classList.contains('on');
+    return wrap;
+  },
+
+  confirm(f) {
+    const panel = el('div', { className: 'confirm' });
+    panel.appendChild(el('div', { className: 'confirm-title', textContent: f.title }));
+    const preview = el('div', { className: 'confirm-preview' });
+    (f.preview || []).forEach(p => {
+      const row = el('div', { className: 'cp-row' });
+      row.append(el('span', { className: 'cp-key', textContent: p.key }), el('span', { className: 'cp-val', textContent: p.value }));
+      preview.appendChild(row);
+    });
+    panel.appendChild(preview);
+    const btns = el('div', { className: 'confirm-btns' });
+    let confirmed = null;
+    const bConfirm = el('button', { className: 'btn btn-danger', textContent: f.confirmLabel || 'Confirm' });
+    const bCancel = el('button', { className: 'btn btn-ghost', textContent: f.cancelLabel || 'Cancel' });
+    bConfirm.addEventListener('click', () => { confirmed = true; toast(f.confirmLabel || 'Confirmed'); });
+    bCancel.addEventListener('click', () => { confirmed = false; toast(f.cancelLabel || 'Cancelled'); });
+    btns.append(bConfirm, bCancel);
+    panel.appendChild(btns);
+    state[f.id] = () => confirmed;
+    return panel;
+  },
+};
+
+// ===== HELPERS =====
+function el(tag, props = {}) {
+  const e = document.createElement(tag);
+  Object.entries(props).forEach(([k, v]) => { if (v !== '' && v !== undefined) e[k] = v; });
+  return e;
 }
 
-// Ranked
-const rl = document.getElementById('ranked-list');
-let dragEl = null;
-rl?.querySelectorAll('.ranked-item').forEach(item => {
-  item.addEventListener('dragstart', e => { dragEl = item; item.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; });
-  item.addEventListener('dragend', () => { item.style.opacity = '1'; dragEl = null; renum(); });
-  item.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
-  item.addEventListener('drop', e => {
-    e.preventDefault();
-    if (dragEl && dragEl !== item) {
-      const items = [...rl.children], fi = items.indexOf(dragEl), ti = items.indexOf(item);
-      fi < ti ? item.after(dragEl) : item.before(dragEl);
-    }
-    renum();
-  });
-  // Touch
-  item.addEventListener('touchstart', e => { dragEl = item; }, { passive: true });
-  item.addEventListener('touchmove', e => {
-    if (!dragEl) return; e.preventDefault();
-    const t = e.touches[0];
-    for (const o of [...rl.children]) {
-      if (o === dragEl) continue;
-      const r = o.getBoundingClientRect(), m = r.top + r.height / 2;
-      if (t.clientY < m && o.compareDocumentPosition(dragEl) & 4) { o.before(dragEl); break; }
-      if (t.clientY > m && o.compareDocumentPosition(dragEl) & 2) { o.after(dragEl); break; }
-    }
-  }, { passive: false });
-  item.addEventListener('touchend', () => { dragEl = null; renum(); });
-});
-function renum() { rl?.querySelectorAll('.rank-num').forEach((n, i) => n.textContent = i + 1); }
-function removeRank(b) { b.closest('.ranked-item').remove(); renum(); }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
 
-// Sliders
-document.querySelectorAll('.slider-wrap').forEach(w => {
-  const tr = w.querySelector('.slider-track'), fl = w.querySelector('.slider-fill'),
-        th = w.querySelector('.slider-thumb'), vi = w.querySelector('.slider-val');
+// ===== SLIDER INIT =====
+function initSlider(wrap) {
+  const tr = wrap.querySelector('.slider-track'), fl = wrap.querySelector('.slider-fill'),
+        th = wrap.querySelector('.slider-thumb'), vi = wrap.querySelector('.slider-val');
   const mn = +tr.dataset.min, mx = +tr.dataset.max, st = +tr.dataset.step;
   function set(p) {
     p = Math.max(0, Math.min(1, p));
@@ -997,21 +953,18 @@ document.querySelectorAll('.slider-wrap').forEach(w => {
   th.addEventListener('pointerup', () => d = false);
   tr.addEventListener('click', ptr);
   vi.addEventListener('change', () => { let v = Math.max(mn, Math.min(mx, +vi.value)); set((v - mn) / (mx - mn)); });
-});
+}
 
-// Range Slider
-document.querySelectorAll('.range-wrap').forEach(w => {
-  const tr = w.querySelector('.slider-track'), fl = w.querySelector('.slider-fill'),
-        ths = w.querySelectorAll('.slider-thumb'),
-        lMin = w.querySelector('#rl-min'), lMax = w.querySelector('#rl-max');
+function initRange(wrap, defs, lMin, lMax) {
+  const tr = wrap.querySelector('.slider-track'), fl = wrap.querySelector('.slider-fill'),
+        ths = wrap.querySelectorAll('.slider-thumb');
   const mn = +tr.dataset.min, mx = +tr.dataset.max, st = +tr.dataset.step;
-  let vals = [512, 2560];
+  const vals = [...defs];
   function upd() {
     const p0 = (vals[0] - mn) / (mx - mn) * 100, p1 = (vals[1] - mn) / (mx - mn) * 100;
     fl.style.left = p0 + '%'; fl.style.width = (p1 - p0) + '%';
     ths[0].style.left = p0 + '%'; ths[1].style.left = p1 + '%';
-    if (lMin) lMin.textContent = vals[0];
-    if (lMax) lMax.textContent = vals[1];
+    lMin.textContent = Math.round(vals[0]); lMax.textContent = Math.round(vals[1]);
   }
   ths.forEach((th, i) => {
     let d = false;
@@ -1025,15 +978,145 @@ document.querySelectorAll('.range-wrap').forEach(w => {
     });
     th.addEventListener('pointerup', () => d = false);
   });
-  upd();
+}
+
+// ===== DRAG INIT =====
+function initDrag(ul) {
+  let dragEl = null;
+  ul.querySelectorAll('.ranked-item:not(.locked)').forEach(item => {
+    item.addEventListener('dragstart', e => { dragEl = item; item.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; });
+    item.addEventListener('dragend', () => { item.style.opacity = '1'; dragEl = null; renum(ul); });
+    item.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragEl && dragEl !== item) {
+        const items = [...ul.children], fi = items.indexOf(dragEl), ti = items.indexOf(item);
+        fi < ti ? item.after(dragEl) : item.before(dragEl);
+      }
+      renum(ul);
+    });
+    item.addEventListener('touchstart', () => { dragEl = item; }, { passive: true });
+    item.addEventListener('touchmove', e => {
+      if (!dragEl) return; e.preventDefault();
+      const t = e.touches[0];
+      for (const o of [...ul.children]) {
+        if (o === dragEl) continue;
+        const r = o.getBoundingClientRect(), m = r.top + r.height / 2;
+        if (t.clientY < m && o.compareDocumentPosition(dragEl) & 4) { o.before(dragEl); break; }
+        if (t.clientY > m && o.compareDocumentPosition(dragEl) & 2) { o.after(dragEl); break; }
+      }
+    }, { passive: false });
+    item.addEventListener('touchend', () => { dragEl = null; renum(ul); });
+  });
+}
+function renum(ul) { ul.querySelectorAll('.rank-num').forEach((n, i) => n.textContent = i + 1); }
+
+// ===== RENDER FORM FROM SCHEMA =====
+function renderForm(schema) {
+  const body = document.getElementById('formBody');
+  body.innerHTML = '';
+
+  // Header
+  if (schema.title || schema.description) {
+    const hdr = el('div', { className: 'form-header' });
+    if (schema.title) hdr.appendChild(el('h1', { className: 'form-title', textContent: schema.title }));
+    if (schema.description) hdr.appendChild(el('p', { className: 'form-description', textContent: schema.description }));
+    body.appendChild(hdr);
+  }
+
+  // Fields
+  schema.fields.forEach(f => {
+    const renderer = R[f.type];
+    if (!renderer) { console.warn('Unknown field type:', f.type); return; }
+
+    // Boolean renders its own label inside the toggle-row
+    if (f.type === 'boolean') {
+      const group = el('div', { className: 'field-group' });
+      group.appendChild(renderer(f));
+      body.appendChild(group);
+      return;
+    }
+
+    const group = el('div', { className: 'field-group' });
+    if (f.label && f.type !== 'confirm') {
+      const lbl = el('label', { className: 'field-label' });
+      lbl.textContent = f.label;
+      if (f.required) { const req = el('span', { className: 'req', textContent: ' *' }); lbl.appendChild(req); }
+      group.appendChild(lbl);
+    }
+    if (f.description && f.type !== 'confirm') group.appendChild(el('p', { className: 'field-desc', textContent: f.description }));
+    group.appendChild(renderer(f));
+    body.appendChild(group);
+  });
+}
+
+// ===== GET ALL VALUES =====
+function getValues() {
+  const values = {};
+  Object.entries(state).forEach(([k, getter]) => {
+    if (!k.includes('.')) values[k] = getter();
+  });
+  return values;
+}
+
+// ===== MCP APP BRIDGE =====
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'tool-call' && e.data?.data) {
+    try {
+      const schema = typeof e.data.data === 'string' ? JSON.parse(e.data.data) : e.data.data;
+      renderForm(schema);
+    } catch (err) { console.error('Schema parse error:', err); }
+  }
+  if (e.data?.type === 'get-values') {
+    window.parent.postMessage({ type: 'form-values', values: getValues() }, '*');
+  }
 });
 
-// Toast
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2400);
-}
+// Notify host we're ready
+window.parent.postMessage({ type: 'app-ready' }, '*');
+
+// ===== DEMO SCHEMA (standalone / fallback) =====
+const DEMO_SCHEMA = {
+  title: "Configure Your Project",
+  description: "Set up parameters for your project.",
+  fields: [
+    { id: "name", type: "text", label: "Project Name", required: true, placeholder: "e.g. My Cool Project" },
+    { id: "desc", type: "longtext", label: "Description", description: "A brief overview of what this project does.", placeholder: "Tell us about your project..." },
+    { id: "iterations", type: "number", label: "Max Iterations", default: 10, min: 1, max: 100, unit: "iterations" },
+    { id: "temperature", type: "slider", label: "Temperature", description: "Lower is focused, higher is creative.", min: 0, max: 2, step: 0.1, default: 0.7 },
+    { id: "tokens", type: "range", label: "Token Range", description: "Min and max output tokens.", min: 0, max: 4096, step: 64, default: [512, 2560] },
+    { id: "model", type: "single-select", label: "Model", required: true, options: [{ value: "haiku", label: "Haiku" }, { value: "sonnet", label: "Sonnet" }, { value: "opus", label: "Opus" }], default: "sonnet" },
+    { id: "caps", type: "multi-select", label: "Capabilities", description: "Select all that apply.", options: [{ value: "code", label: "Code" }, { value: "vision", label: "Vision" }, { value: "tools", label: "Tools" }, { value: "search", label: "Search" }, { value: "artifacts", label: "Artifacts" }], default: ["code", "tools"] },
+    { id: "files", type: "checklist", label: "Files to Include", showSelectAll: true, items: [
+      { id: "main", label: "main.ts", preview: "2.4 KB", group: "Source Files" },
+      { id: "config", label: "config.json", preview: "860 B", group: "Source Files" },
+      { id: "utils", label: "utils.ts", preview: "1.1 KB", group: "Source Files" },
+      { id: "readme", label: "README.md", preview: "3.2 KB", group: "Docs" },
+    ], default: ["main", "utils"] },
+    { id: "priority", type: "ranked", label: "Priority Order", description: "Drag to reorder.", removable: true, items: [
+      { id: "perf", label: "Performance" }, { id: "safety", label: "Safety" }, { id: "cost", label: "Cost Efficiency" }, { id: "latency", label: "Latency" }
+    ]},
+    { id: "importance", type: "rating", label: "Importance", max: 5, default: 3 },
+    { id: "colors", type: "color", label: "Theme Colors", roles: [
+      { role: "primary", label: "Primary", swatches: ["#c96442", "#3898ec", "#5e5d59", "#27ae60", "#7c3aed"], allowCustom: true },
+      { role: "background", label: "Background", swatches: ["#f5f4ed", "#ffffff", "#141413", "#1e293b"] },
+    ]},
+    { id: "startDate", type: "date", label: "Start Date", default: "2026-04-07" },
+    { id: "period", type: "date-range", label: "Active Period", default: { start: "2026-04-07", end: "2026-05-07" } },
+    { id: "streaming", type: "boolean", label: "Enable streaming", default: true },
+    { id: "cache", type: "boolean", label: "Use prompt cache", default: false },
+    { id: "deploy", type: "confirm", label: "Confirm Deployment", title: "Deploy to Production?", preview: [
+      { key: "Environment", value: "production" }, { key: "Model", value: "Sonnet" }, { key: "Region", value: "us-east-1" }, { key: "Replicas", value: "3" }
+    ], confirmLabel: "Confirm Deploy" },
+  ]
+};
+
+// If not in an iframe (standalone), render demo after a short delay to allow host to send schema
+setTimeout(() => {
+  if (document.getElementById('formBody').children.length === 0) {
+    renderForm(DEMO_SCHEMA);
+  }
+}, 100);
 </script>
 </body>
 </html>
