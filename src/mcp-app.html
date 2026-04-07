@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Structured Input — MCP App</title>
+<style>
+/* ===== HYBRID TOKENS: LIQUID GLASS + WARM UNDERTONE ===== */
+:root {
+  /* Warm undertone (Anthropic-inspired, not dominant) */
+  --warm-near-black: #1a1918;
+  --warm-charcoal: #3d3b38;
+  --warm-mid: #57544f;
+  --warm-stone: #7a7770;
+  --warm-sand: #a8a49a;
+  --warm-cream: #e8e5dc;
+  --warm-ivory: #f5f3ed;
+  --warm-white: #faf9f6;
+
+  /* Accent: terracotta softened for glass context */
+  --accent: #c96442;
+  --accent-hover: #b85a3a;
+  --accent-soft: rgba(201, 100, 66, 0.15);
+  --accent-text: #faf9f6;
+
+  /* Semantic */
+  --danger: #c0392b;
+  --danger-soft: rgba(192, 57, 43, 0.1);
+  --focus: #3898ec;
+  --focus-ring: rgba(56, 152, 236, 0.25);
+  --success: #27ae60;
+
+  /* ---- GLASS CORE ---- */
+  --glass-bg: rgba(255, 255, 255, 0.22);
+  --glass-bg-strong: rgba(255, 255, 255, 0.38);
+  --glass-border: rgba(255, 255, 255, 0.35);
+  --glass-border-subtle: rgba(255, 255, 255, 0.18);
+  --glass-highlight: rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 8px 40px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(255,255,255,0.3);
+  --glass-blur: 24px;
+  --glass-saturate: 1.4;
+
+  /* Inner surfaces — semi-translucent, glass-within-glass */
+  --surface-input: rgba(255, 255, 255, 0.38);
+  --surface-input-focus: rgba(255, 255, 255, 0.55);
+  --surface-card: rgba(255, 255, 255, 0.35);
+  --surface-card-hover: rgba(255, 255, 255, 0.42);
+  --surface-chip: rgba(255, 255, 255, 0.28);
+  --surface-chip-hover: rgba(255, 255, 255, 0.42);
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'Georgia', 'Times New Roman', serif;
+  --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  /* Dynamic spacing — scales with container */
+  --sp-unit: clamp(12px, 2.5cqi, 18px);
+  --sp-xs: calc(var(--sp-unit) * 0.3);
+  --sp-sm: calc(var(--sp-unit) * 0.6);
+  --sp-md: var(--sp-unit);
+  --sp-lg: calc(var(--sp-unit) * 1.6);
+  --sp-xl: calc(var(--sp-unit) * 2.2);
+
+  /* Dynamic type — scales with container */
+  --fs-xs: clamp(0.75rem, 1.8cqi, 0.8125rem);
+  --fs-sm: clamp(0.75rem, 2cqi, 0.8125rem);
+  --fs-base: clamp(0.8125rem, 2.4cqi, 0.9375rem);
+  --fs-md: clamp(0.875rem, 2.6cqi, 1rem);
+  --fs-lg: clamp(1rem, 3cqi, 1.25rem);
+  --fs-xl: clamp(1.25rem, 3.8cqi, 1.5rem);
+
+  /* Radii — scale with container */
+  --radius-sm: clamp(6px, 1.2cqi, 8px);
+  --radius-md: clamp(10px, 2cqi, 14px);
+  --radius-lg: clamp(16px, 3cqi, 22px);
+  --radius-pill: 9999px;
+
+  /* Touch targets */
+  --touch-min: clamp(44px, 8cqi, 48px);
+}
+
+/* ===== RESET ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; }
+}
+
+/* ===== BACKGROUND ===== */
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.55;
+  color: var(--warm-charcoal);
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Rich gradient background — the glass shows through this */
+  background:
+    radial-gradient(ellipse at 25% 15%, rgba(201,100,66,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 85%, rgba(56,152,236,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(39,174,96,0.04) 0%, transparent 60%),
+    linear-gradient(145deg, #c8bfae 0%, #a09688 30%, #8b8578 50%, #a09890 70%, #c0b8aa 100%);
+  background-attachment: fixed;
+}
+
+/* ===== OUTER SHELL — LIQUID GLASS ===== */
+.form-shell {
+  container-type: inline-size;
+  container-name: form;
+  width: 92vw;
+  max-width: 480px;
+  /* Height tied to width via aspect-ratio — capped by viewport + absolute max */
+  aspect-ratio: 3 / 4;
+  max-height: min(88vh, 88dvh, 560px);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  isolation: isolate;
+
+  /* Glass material */
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Specular sheen */
+.form-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 18% 8%, rgba(255,255,255,0.65), rgba(255,255,255,0.15) 32%, transparent 55%),
+    linear-gradient(170deg, rgba(255,255,255,0.28) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Inner border highlight — specular rim */
+.form-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,0.5),
+    inset 0 0 6px rgba(255,255,255,0.2);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ===== INLINE HEADER (inside scroll body) ===== */
+.form-header {
+  margin-bottom: var(--sp-md);
+  padding-bottom: var(--sp-md);
+  border-bottom: 0.5px solid var(--glass-border-subtle);
+}
+
+.form-title {
+  font-family: var(--font-serif);
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  color: var(--warm-near-black);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.form-description {
+  font-size: var(--fs-sm);
+  color: var(--warm-mid);
+  line-height: 1.5;
+  margin-top: var(--sp-xs);
+}
+
+/* ===== SCROLL AREA ===== */
+.form-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  position: relative;
+  z-index: 2;
+  padding: var(--sp-lg) var(--sp-lg);
+  -webkit-overflow-scrolling: touch;
+
+  /* No edge mask needed — single scroll surface */
+}
+
+/* Scrollbar styling */
+.form-body::-webkit-scrollbar { width: 4px; }
+.form-body::-webkit-scrollbar-track { background: transparent; }
+.form-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+
+/* No submit/cancel — LLM reads form state directly */
+
+/* ===== FIELD GROUP ===== */
+.field-group {
+  margin-bottom: var(--sp-lg);
+}
+
+.field-label {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--warm-charcoal);
+  margin-bottom: var(--sp-sm);
+  letter-spacing: 0.01em;
+}
+
+.field-label .req {
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+.field-desc {
+  font-size: var(--fs-xs);
+  color: var(--warm-stone);
+  margin-bottom: var(--sp-sm);
+  line-height: 1.4;
+}
+
+/* ===== SECTION DIVIDER ===== */
+.section-divider {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--warm-stone);
+  margin: var(--sp-lg) 0 var(--sp-md);
+  padding-bottom: var(--sp-xs);
+  border-bottom: 0.5px solid rgba(255,255,255,0.2);
+}
+
+/* ===== TEXT / NUMBER / DATE INPUTS ===== */
+.text-input, .num-input, .date-input {
+  display: block;
+  width: 100%;
+  padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: var(--radius-md);
+  background: var(--surface-input);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--warm-near-black);
+  font-family: inherit;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  outline: none;
+  transition: all 0.2s;
+  min-height: var(--touch-min);
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.4);
+}
+
+.text-input:focus, .num-input:focus, .date-input:focus {
+  background: var(--surface-input-focus);
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.text-input::placeholder { color: var(--warm-stone); }
+
+textarea.text-input { resize: vertical; min-height: 80px; }
+
+.num-input { max-width: clamp(100px, 30cqi, 150px); }
+
+.num-row { display: flex; align-items: center; gap: var(--sp-sm); }
+.num-unit { font-size: var(--fs-sm); color: var(--warm-mid); }
+
+/* ===== SLIDER ===== */
+.slider-wrap { display: flex; align-items: center; gap: var(--sp-md); }
+
+.slider-track {
+  flex: 1;
+  position: relative;
+  height: 6px;
+  background: rgba(255,255,255,0.25);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.slider-fill {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+
+.slider-thumb {
+  position: absolute; top: 50%;
+  width: clamp(18px, 4cqi, 24px);
+  height: clamp(18px, 4cqi, 24px);
+  border-radius: 50%;
+  background: var(--warm-white);
+  border: 2px solid var(--accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+  z-index: 2;
+  transition: box-shadow 0.15s;
+}
+
+.slider-thumb:active { cursor: grabbing; box-shadow: 0 2px 14px rgba(201,100,66,0.35); }
+
+.slider-val {
+  width: clamp(56px, 14cqi, 72px);
+  padding: var(--sp-sm) var(--sp-sm);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: var(--radius-sm);
+  background: var(--surface-input);
+  backdrop-filter: blur(6px);
+  color: var(--warm-near-black);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  text-align: center;
+  outline: none;
+  min-height: var(--touch-min);
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.4);
+}
+
+.slider-val:focus { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus-ring); }
+
+/* Range labels */
+.range-labels {
+  display: flex; justify-content: space-between; margin-top: var(--sp-xs);
+  font-size: var(--fs-xs); font-family: var(--font-mono); color: var(--warm-mid);
+}
+
+/* ===== CHIPS ===== */
+.chips { display: flex; flex-wrap: wrap; gap: var(--sp-sm); }
+
+.chip {
+  padding: var(--sp-xs) var(--sp-md);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255,255,255,0.22);
+  background: var(--surface-chip);
+  backdrop-filter: blur(8px);
+  color: var(--warm-charcoal);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
+  white-space: nowrap;
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  touch-action: manipulation;
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.4);
+}
+
+.chip:hover { background: var(--surface-chip-hover); }
+
+.chip.sel {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(201,100,66,0.25);
+}
+
+/* ===== CHECKLIST ===== */
+.checklist { list-style: none; }
+
+.cl-header {
+  font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--warm-stone);
+  padding: var(--sp-sm) 0 var(--sp-xs);
+  border-bottom: 0.5px solid rgba(255,255,255,0.15);
+  margin-bottom: var(--sp-xs);
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+.cl-action {
+  font-size: var(--fs-xs); font-weight: 500; text-transform: none; letter-spacing: 0;
+  color: var(--accent); cursor: pointer; background: none; border: none; font-family: inherit;
+}
+
+.cl-item {
+  display: flex; align-items: center; gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+  min-height: var(--touch-min);
+}
+
+.cl-item:hover { background: rgba(255,255,255,0.15); }
+
+.cl-box {
+  width: clamp(16px, 3.5cqi, 20px); height: clamp(16px, 3.5cqi, 20px);
+  border-radius: calc(var(--radius-sm) * 0.7);
+  border: 1.5px solid var(--warm-sand);
+  background: var(--surface-input);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+
+.cl-item.on .cl-box { background: var(--accent); border-color: var(--accent); }
+.cl-box svg { width: 12px; height: 12px; opacity: 0; transition: opacity 0.15s; }
+.cl-item.on .cl-box svg { opacity: 1; }
+.cl-label { font-size: var(--fs-base); flex: 1; }
+.cl-meta { font-size: var(--fs-xs); font-family: var(--font-mono); color: var(--warm-stone);
+  padding: 2px 6px; background: rgba(255,255,255,0.2); border-radius: var(--radius-sm); }
+
+/* Content plate — frosted card */
+.plate {
+  background: var(--surface-card);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: var(--radius-md);
+  padding: var(--sp-md);
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.5);
+}
+
+/* ===== RANKED LIST ===== */
+.ranked { list-style: none; }
+
+.ranked-item {
+  display: flex; align-items: center; gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  border: 1px solid rgba(255,255,255,0.22);
+  margin-bottom: var(--sp-sm);
+  cursor: grab; touch-action: none;
+  transition: box-shadow 0.2s, transform 0.15s;
+  min-height: var(--touch-min);
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.4);
+}
+
+.ranked-item:active { cursor: grabbing; box-shadow: 0 6px 20px rgba(0,0,0,0.15); transform: scale(1.01); }
+
+.drag-handle { color: var(--warm-stone); display: flex; flex-shrink: 0; }
+
+.rank-num {
+  width: clamp(20px, 4cqi, 24px); height: clamp(20px, 4cqi, 24px);
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  color: var(--warm-mid);
+  font-size: var(--fs-xs); font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.ranked-label { flex: 1; font-size: var(--fs-base); }
+
+.ranked-rm {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: none; background: transparent; color: var(--warm-stone);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.ranked-rm:hover { background: var(--danger-soft); color: var(--danger); }
+
+/* ===== RATING ===== */
+.rating { display: flex; gap: 4px; align-items: center; }
+
+.star {
+  width: clamp(36px, 7cqi, 44px); height: clamp(36px, 7cqi, 44px);
+  cursor: pointer; transition: transform 0.15s;
+  color: rgba(255,255,255,0.3); fill: currentColor;
+}
+.star:hover { transform: scale(1.15); }
+.star.on { color: var(--accent); }
+.star.hover { color: var(--accent-hover); }
+.rating-lbl { margin-left: var(--sp-sm); font-size: var(--fs-sm); color: var(--warm-mid); font-family: var(--font-mono); }
+
+/* ===== COLOR PICKER ===== */
+.color-group { margin-bottom: var(--sp-md); }
+.color-role { font-size: var(--fs-sm); font-weight: 600; color: var(--warm-charcoal); margin-bottom: var(--sp-sm); }
+.swatches { display: flex; flex-wrap: wrap; gap: var(--sp-sm); }
+
+.swatch {
+  width: clamp(40px, 7cqi, 44px); height: clamp(40px, 7cqi, 44px);
+  border-radius: var(--radius-sm);
+  border: 2px solid transparent;
+  cursor: pointer; transition: all 0.15s;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.08);
+}
+.swatch:hover { transform: scale(1.1); }
+.swatch.sel {
+  border-color: var(--warm-white);
+  box-shadow: 0 0 0 2px var(--warm-near-black), inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+.hex-in {
+  width: 100px; padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid rgba(255,255,255,0.22); border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: var(--fs-sm);
+  color: var(--warm-near-black); background: var(--surface-input);
+  outline: none; margin-top: var(--sp-sm);
+  min-height: 32px;
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.4);
+}
+.hex-in:focus { border-color: var(--focus); }
+
+/* ===== DATE ===== */
+.date-input { max-width: clamp(140px, 40cqi, 200px); }
+.date-range { display: flex; align-items: center; gap: var(--sp-sm); flex-wrap: wrap; }
+.date-sep { color: var(--warm-stone); font-size: var(--fs-sm); }
+
+/* ===== TOGGLE ===== */
+.toggle-row { display: flex; align-items: center; gap: var(--sp-sm); }
+
+.toggle {
+  width: clamp(44px, 10cqi, 52px); height: clamp(26px, 6cqi, 32px);
+  border-radius: var(--radius-pill);
+  position: relative; cursor: pointer;
+  background: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.22);
+  transition: background 0.25s, border-color 0.25s;
+  flex-shrink: 0; touch-action: manipulation;
+}
+
+.toggle.on { background: var(--accent); border-color: var(--accent); }
+
+.toggle-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: calc(100% / 2 - 2px); height: calc(100% - 4px);
+  border-radius: 50%; background: var(--warm-white);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.toggle.on .toggle-knob { transform: translateX(calc(100% + 2px)); }
+
+.toggle-text { font-size: var(--fs-base); color: var(--warm-charcoal); }
+
+/* ===== CONFIRM PANEL ===== */
+.confirm {
+  background: var(--surface-card);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: var(--radius-md);
+  padding: var(--sp-md);
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.5);
+}
+
+.confirm-title {
+  font-family: var(--font-serif); font-size: var(--fs-lg);
+  font-weight: 500; color: var(--warm-near-black); margin-bottom: var(--sp-sm);
+}
+
+.confirm-preview {
+  background: rgba(255,255,255,0.3);
+  border-radius: var(--radius-sm); padding: var(--sp-sm) var(--sp-md);
+  margin-bottom: var(--sp-md); border: 0.5px solid rgba(255,255,255,0.15);
+}
+
+.cp-row {
+  display: flex; justify-content: space-between;
+  padding: var(--sp-xs) 0; font-size: var(--fs-sm);
+  border-bottom: 0.5px solid rgba(255,255,255,0.1);
+}
+.cp-row:last-child { border-bottom: none; }
+.cp-key { color: var(--warm-mid); }
+.cp-val { color: var(--warm-near-black); font-weight: 600; }
+
+.confirm-btns { display: flex; gap: var(--sp-sm); }
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: var(--sp-sm) var(--sp-lg);
+  border-radius: var(--radius-md);
+  font-family: inherit; font-size: var(--fs-base); font-weight: 600;
+  cursor: pointer; border: none;
+  transition: all 0.2s; min-height: var(--touch-min);
+  touch-action: manipulation; flex: 1;
+}
+
+.btn-primary {
+  background: var(--accent); color: var(--accent-text);
+  box-shadow: 0 2px 12px rgba(201,100,66,0.25);
+}
+.btn-primary:hover { background: var(--accent-hover); box-shadow: 0 4px 16px rgba(201,100,66,0.3); }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-ghost {
+  background: rgba(255,255,255,0.15); color: var(--warm-charcoal);
+  border: 0.5px solid rgba(255,255,255,0.3);
+  backdrop-filter: blur(6px);
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.28); }
+
+.btn-danger {
+  background: var(--danger); color: var(--accent-text);
+  box-shadow: 0 2px 10px rgba(192,57,43,0.2);
+}
+.btn-danger:hover { background: #a93226; }
+
+/* ===== TOAST ===== */
+.toast {
+  position: fixed; bottom: var(--sp-lg); left: 50%;
+  transform: translateX(-50%) translateY(120px);
+  padding: var(--sp-sm) var(--sp-lg);
+  border-radius: var(--radius-pill);
+  background: rgba(26,25,24,0.85);
+  backdrop-filter: blur(12px);
+  color: var(--warm-white); font-size: var(--fs-sm); font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  z-index: 100;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ===== RESPONSIVE ===== */
+@container form (max-width: 360px) {
+  .date-range { flex-direction: column; align-items: stretch; }
+  .date-input { max-width: 100%; }
+  .date-sep { padding: var(--sp-xs) 0; font-weight: 600; text-align: center; }
+  .confirm-btns { flex-direction: column; gap: var(--sp-md); }
+}
+
+@media (max-width: 480px) {
+  body { align-items: flex-start; }
+  .form-shell {
+    width: 100vw; max-width: 100vw;
+    aspect-ratio: 3 / 4;
+    max-height: 100vh; max-height: 100dvh;
+    border-radius: 0;
+  }
+}
+
+@media (min-width: 481px) {
+  .form-shell {
+    margin: var(--sp-lg);
+    aspect-ratio: 5 / 6; /* slightly less portrait on wider screens */
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="form-shell" id="formApp">
+  <!-- Single scrollable area — no separate header/footer -->
+  <div class="form-body">
+
+    <!-- Inline header -->
+    <div class="form-header">
+      <h1 class="form-title">Configure Your Project</h1>
+      <p class="form-description">Set up parameters for your project.</p>
+    </div>
+
+    <!-- 1. Text -->
+    <div class="field-group">
+      <label class="field-label">Project Name <span class="req">*</span></label>
+      <input type="text" class="text-input" id="f-name" placeholder="e.g. My Cool Project" maxlength="100">
+    </div>
+
+    <!-- 2. Long Text -->
+    <div class="field-group">
+      <label class="field-label">Description</label>
+      <p class="field-desc">A brief overview of what this project does.</p>
+      <textarea class="text-input" id="f-desc" placeholder="Tell us about your project..." rows="3"></textarea>
+    </div>
+
+    <!-- 3. Number -->
+    <div class="field-group">
+      <label class="field-label">Max Iterations</label>
+      <div class="num-row">
+        <input type="number" class="num-input" id="f-iter" value="10" min="1" max="100" step="1">
+        <span class="num-unit">iterations</span>
+      </div>
+    </div>
+
+    <div class="section-divider">Parameters</div>
+
+    <!-- 4. Slider -->
+    <div class="field-group">
+      <label class="field-label">Temperature</label>
+      <p class="field-desc">Lower is focused, higher is creative.</p>
+      <div class="slider-wrap" id="slider-temp">
+        <div class="slider-track" data-min="0" data-max="2" data-step="0.1">
+          <div class="slider-fill" style="width:35%"></div>
+          <div class="slider-thumb" style="left:35%"></div>
+        </div>
+        <input type="number" class="slider-val" value="0.7" min="0" max="2" step="0.1">
+      </div>
+    </div>
+
+    <!-- 5. Range Slider -->
+    <div class="field-group">
+      <label class="field-label">Token Range</label>
+      <p class="field-desc">Min and max output tokens.</p>
+      <div class="range-wrap" id="range-tokens">
+        <div class="slider-track" data-min="0" data-max="4096" data-step="64">
+          <div class="slider-fill" style="left:12.5%;width:50%"></div>
+          <div class="slider-thumb" style="left:12.5%" data-role="min"></div>
+          <div class="slider-thumb" style="left:62.5%" data-role="max"></div>
+        </div>
+        <div class="range-labels">
+          <span id="rl-min">512</span>
+          <span id="rl-max">2560</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider">Selection</div>
+
+    <!-- 6. Single-Select Chips -->
+    <div class="field-group">
+      <label class="field-label">Model <span class="req">*</span></label>
+      <div class="chips" id="chips-model" data-mode="single">
+        <div class="chip" data-value="haiku">Haiku</div>
+        <div class="chip sel" data-value="sonnet">Sonnet</div>
+        <div class="chip" data-value="opus">Opus</div>
+      </div>
+    </div>
+
+    <!-- 7. Multi-Select Chips -->
+    <div class="field-group">
+      <label class="field-label">Capabilities</label>
+      <p class="field-desc">Select all that apply.</p>
+      <div class="chips" id="chips-caps" data-mode="multi">
+        <div class="chip sel" data-value="code">Code</div>
+        <div class="chip" data-value="vision">Vision</div>
+        <div class="chip sel" data-value="tools">Tools</div>
+        <div class="chip" data-value="search">Search</div>
+        <div class="chip" data-value="artifacts">Artifacts</div>
+      </div>
+    </div>
+
+    <!-- 8. Checklist -->
+    <div class="field-group">
+      <label class="field-label">Files to Include</label>
+      <div class="plate">
+        <div class="cl-header">
+          <span>Source Files</span>
+          <button class="cl-action" onclick="toggleGroup(this)">Select all</button>
+        </div>
+        <ul class="checklist" id="cl-files">
+          <li class="cl-item on" data-id="main" onclick="toggleCl(this)">
+            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span class="cl-label">main.ts</span>
+            <span class="cl-meta">2.4 KB</span>
+          </li>
+          <li class="cl-item" data-id="config" onclick="toggleCl(this)">
+            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span class="cl-label">config.json</span>
+            <span class="cl-meta">860 B</span>
+          </li>
+          <li class="cl-item on" data-id="utils" onclick="toggleCl(this)">
+            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span class="cl-label">utils.ts</span>
+            <span class="cl-meta">1.1 KB</span>
+          </li>
+          <li class="cl-item" data-id="readme" onclick="toggleCl(this)">
+            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span class="cl-label">README.md</span>
+            <span class="cl-meta">3.2 KB</span>
+          </li>
+          <li class="cl-item" data-id="tests" onclick="toggleCl(this)">
+            <div class="cl-box"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span class="cl-label">tests/index.test.ts</span>
+            <span class="cl-meta">1.8 KB</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 9. Ranked List -->
+    <div class="field-group">
+      <label class="field-label">Priority Order</label>
+      <p class="field-desc">Drag to reorder.</p>
+      <ul class="ranked" id="ranked-list">
+        <li class="ranked-item" data-id="perf" draggable="true">
+          <div class="drag-handle"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg></div>
+          <div class="rank-num">1</div>
+          <span class="ranked-label">Performance</span>
+          <button class="ranked-rm" onclick="removeRank(this)"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg></button>
+        </li>
+        <li class="ranked-item" data-id="safety" draggable="true">
+          <div class="drag-handle"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg></div>
+          <div class="rank-num">2</div>
+          <span class="ranked-label">Safety</span>
+          <button class="ranked-rm" onclick="removeRank(this)"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg></button>
+        </li>
+        <li class="ranked-item" data-id="cost" draggable="true">
+          <div class="drag-handle"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg></div>
+          <div class="rank-num">3</div>
+          <span class="ranked-label">Cost Efficiency</span>
+          <button class="ranked-rm" onclick="removeRank(this)"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg></button>
+        </li>
+        <li class="ranked-item" data-id="latency" draggable="true">
+          <div class="drag-handle"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg></div>
+          <div class="rank-num">4</div>
+          <span class="ranked-label">Latency</span>
+          <button class="ranked-rm" onclick="removeRank(this)"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg></button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="section-divider">Preferences</div>
+
+    <!-- 10. Rating -->
+    <div class="field-group">
+      <label class="field-label">Importance</label>
+      <div class="rating" id="rating">
+        <svg class="star on" data-v="1" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg class="star on" data-v="2" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg class="star on" data-v="3" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg class="star" data-v="4" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg class="star" data-v="5" viewBox="0 0 24 24" onclick="setRate(this)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span class="rating-lbl">3/5</span>
+      </div>
+    </div>
+
+    <!-- 11. Color -->
+    <div class="field-group">
+      <label class="field-label">Theme Colors</label>
+      <div class="color-group">
+        <div class="color-role">Primary</div>
+        <div class="swatches" data-role="primary">
+          <div class="swatch sel" style="background:#c96442" data-c="#c96442" onclick="pickSwatch(this)"></div>
+          <div class="swatch" style="background:#3898ec" data-c="#3898ec" onclick="pickSwatch(this)"></div>
+          <div class="swatch" style="background:#5e5d59" data-c="#5e5d59" onclick="pickSwatch(this)"></div>
+          <div class="swatch" style="background:#27ae60" data-c="#27ae60" onclick="pickSwatch(this)"></div>
+          <div class="swatch" style="background:#7c3aed" data-c="#7c3aed" onclick="pickSwatch(this)"></div>
+        </div>
+        <input type="text" class="hex-in" value="#c96442" placeholder="#hex">
+      </div>
+      <div class="color-group">
+        <div class="color-role">Background</div>
+        <div class="swatches" data-role="bg">
+          <div class="swatch sel" style="background:#f5f4ed" data-c="#f5f4ed" onclick="pickSwatch(this)"></div>
+          <div class="swatch" style="background:#ffffff" data-c="#ffffff" onclick="pickSwatch(this)"></div>
+          <div class="swatch" style="background:#141413" data-c="#141413" onclick="pickSwatch(this)"></div>
+          <div class="swatch" style="background:#1e293b" data-c="#1e293b" onclick="pickSwatch(this)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 12. Date -->
+    <div class="field-group">
+      <label class="field-label">Start Date</label>
+      <input type="date" class="date-input" id="f-date" value="2026-04-07">
+    </div>
+
+    <!-- 13. Date Range -->
+    <div class="field-group">
+      <label class="field-label">Active Period</label>
+      <div class="date-range">
+        <input type="date" class="date-input" id="f-ds" value="2026-04-07">
+        <span class="date-sep">to</span>
+        <input type="date" class="date-input" id="f-de" value="2026-05-07">
+      </div>
+    </div>
+
+    <!-- 14. Boolean -->
+    <div class="field-group">
+      <div class="toggle-row">
+        <div class="toggle on" id="t-stream" onclick="tog(this)"><div class="toggle-knob"></div></div>
+        <span class="toggle-text">Enable streaming</span>
+      </div>
+    </div>
+    <div class="field-group">
+      <div class="toggle-row">
+        <div class="toggle" id="t-cache" onclick="tog(this)"><div class="toggle-knob"></div></div>
+        <span class="toggle-text">Use prompt cache</span>
+      </div>
+    </div>
+
+    <!-- 15. Confirm -->
+    <div class="field-group">
+      <label class="field-label">Confirm Deployment</label>
+      <div class="confirm">
+        <div class="confirm-title">Deploy to Production?</div>
+        <div class="confirm-preview">
+          <div class="cp-row"><span class="cp-key">Environment</span><span class="cp-val">production</span></div>
+          <div class="cp-row"><span class="cp-key">Model</span><span class="cp-val">Sonnet</span></div>
+          <div class="cp-row"><span class="cp-key">Region</span><span class="cp-val">us-east-1</span></div>
+          <div class="cp-row"><span class="cp-key">Replicas</span><span class="cp-val">3</span></div>
+        </div>
+        <div class="confirm-btns">
+          <button class="btn btn-danger" onclick="toast('Deployment confirmed')">Confirm Deploy</button>
+          <button class="btn btn-ghost" onclick="toast('Deployment cancelled')">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /form-body -->
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Chips
+document.querySelectorAll('.chips').forEach(c => {
+  c.querySelectorAll('.chip').forEach(ch => {
+    ch.addEventListener('click', () => {
+      if (c.dataset.mode === 'single') {
+        c.querySelectorAll('.chip').forEach(x => x.classList.remove('sel'));
+        ch.classList.add('sel');
+      } else ch.classList.toggle('sel');
+    });
+  });
+});
+
+// Checklist
+function toggleCl(el) { el.classList.toggle('on'); }
+function toggleGroup(btn) {
+  const plate = btn.closest('.plate');
+  const items = plate.querySelectorAll('.cl-item');
+  const allOn = [...items].every(i => i.classList.contains('on'));
+  items.forEach(i => allOn ? i.classList.remove('on') : i.classList.add('on'));
+  btn.textContent = allOn ? 'Select all' : 'Deselect all';
+}
+
+// Rating
+function setRate(s) {
+  const v = +s.dataset.v;
+  const c = s.closest('.rating');
+  c.querySelectorAll('.star').forEach(x => x.classList.toggle('on', +x.dataset.v <= v));
+  c.querySelector('.rating-lbl').textContent = v + '/5';
+}
+document.querySelectorAll('.rating').forEach(c => {
+  c.querySelectorAll('.star').forEach(s => {
+    s.addEventListener('mouseenter', () => {
+      const v = +s.dataset.v;
+      c.querySelectorAll('.star').forEach(x => x.classList.toggle('hover', +x.dataset.v <= v));
+    });
+  });
+  c.addEventListener('mouseleave', () => c.querySelectorAll('.star').forEach(x => x.classList.remove('hover')));
+});
+
+// Toggle
+function tog(el) { el.classList.toggle('on'); }
+
+// Color
+function pickSwatch(s) {
+  const g = s.closest('.swatches');
+  g.querySelectorAll('.swatch').forEach(x => x.classList.remove('sel'));
+  s.classList.add('sel');
+  const hex = s.closest('.color-group')?.querySelector('.hex-in');
+  if (hex) hex.value = s.dataset.c;
+}
+
+// Ranked
+const rl = document.getElementById('ranked-list');
+let dragEl = null;
+rl?.querySelectorAll('.ranked-item').forEach(item => {
+  item.addEventListener('dragstart', e => { dragEl = item; item.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; });
+  item.addEventListener('dragend', () => { item.style.opacity = '1'; dragEl = null; renum(); });
+  item.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+  item.addEventListener('drop', e => {
+    e.preventDefault();
+    if (dragEl && dragEl !== item) {
+      const items = [...rl.children], fi = items.indexOf(dragEl), ti = items.indexOf(item);
+      fi < ti ? item.after(dragEl) : item.before(dragEl);
+    }
+    renum();
+  });
+  // Touch
+  item.addEventListener('touchstart', e => { dragEl = item; }, { passive: true });
+  item.addEventListener('touchmove', e => {
+    if (!dragEl) return; e.preventDefault();
+    const t = e.touches[0];
+    for (const o of [...rl.children]) {
+      if (o === dragEl) continue;
+      const r = o.getBoundingClientRect(), m = r.top + r.height / 2;
+      if (t.clientY < m && o.compareDocumentPosition(dragEl) & 4) { o.before(dragEl); break; }
+      if (t.clientY > m && o.compareDocumentPosition(dragEl) & 2) { o.after(dragEl); break; }
+    }
+  }, { passive: false });
+  item.addEventListener('touchend', () => { dragEl = null; renum(); });
+});
+function renum() { rl?.querySelectorAll('.rank-num').forEach((n, i) => n.textContent = i + 1); }
+function removeRank(b) { b.closest('.ranked-item').remove(); renum(); }
+
+// Sliders
+document.querySelectorAll('.slider-wrap').forEach(w => {
+  const tr = w.querySelector('.slider-track'), fl = w.querySelector('.slider-fill'),
+        th = w.querySelector('.slider-thumb'), vi = w.querySelector('.slider-val');
+  const mn = +tr.dataset.min, mx = +tr.dataset.max, st = +tr.dataset.step;
+  function set(p) {
+    p = Math.max(0, Math.min(1, p));
+    let v = Math.round((mn + p * (mx - mn)) / st) * st;
+    p = (v - mn) / (mx - mn);
+    fl.style.width = p * 100 + '%'; th.style.left = p * 100 + '%';
+    vi.value = v.toFixed(st < 1 ? 1 : 0);
+  }
+  function ptr(e) { const r = tr.getBoundingClientRect(); set(((e.clientX || e.touches?.[0]?.clientX) - r.left) / r.width); }
+  let d = false;
+  th.addEventListener('pointerdown', e => { d = true; e.preventDefault(); th.setPointerCapture(e.pointerId); });
+  th.addEventListener('pointermove', e => { if (d) ptr(e); });
+  th.addEventListener('pointerup', () => d = false);
+  tr.addEventListener('click', ptr);
+  vi.addEventListener('change', () => { let v = Math.max(mn, Math.min(mx, +vi.value)); set((v - mn) / (mx - mn)); });
+});
+
+// Range Slider
+document.querySelectorAll('.range-wrap').forEach(w => {
+  const tr = w.querySelector('.slider-track'), fl = w.querySelector('.slider-fill'),
+        ths = w.querySelectorAll('.slider-thumb'),
+        lMin = w.querySelector('#rl-min'), lMax = w.querySelector('#rl-max');
+  const mn = +tr.dataset.min, mx = +tr.dataset.max, st = +tr.dataset.step;
+  let vals = [512, 2560];
+  function upd() {
+    const p0 = (vals[0] - mn) / (mx - mn) * 100, p1 = (vals[1] - mn) / (mx - mn) * 100;
+    fl.style.left = p0 + '%'; fl.style.width = (p1 - p0) + '%';
+    ths[0].style.left = p0 + '%'; ths[1].style.left = p1 + '%';
+    if (lMin) lMin.textContent = vals[0];
+    if (lMax) lMax.textContent = vals[1];
+  }
+  ths.forEach((th, i) => {
+    let d = false;
+    th.addEventListener('pointerdown', e => { d = true; e.preventDefault(); th.setPointerCapture(e.pointerId); });
+    th.addEventListener('pointermove', e => {
+      if (!d) return;
+      const r = tr.getBoundingClientRect(), p = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+      let v = Math.round((mn + p * (mx - mn)) / st) * st;
+      if (i === 0) v = Math.min(v, vals[1] - st); else v = Math.max(v, vals[0] + st);
+      vals[i] = v; upd();
+    });
+    th.addEventListener('pointerup', () => d = false);
+  });
+  upd();
+});
+
+// Toast
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+</script>
+</body>
+</html>

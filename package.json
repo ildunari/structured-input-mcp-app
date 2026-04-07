@@ -1,0 +1,25 @@
+{
+  "name": "@kosta/structured-input-mcp-app",
+  "version": "0.1.0",
+  "description": "Schema-driven structured input MCP App — renders interactive forms inline in chat conversations",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite build --watch\" \"tsc --watch --project tsconfig.server.json\"",
+    "build": "vite build && tsc --project tsconfig.server.json",
+    "start": "node dist/main.js --stdio",
+    "start:http": "node dist/main.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.3.0",
+    "vite-plugin-singlefile": "^2.0.0"
+  }
+}
