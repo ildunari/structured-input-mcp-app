@@ -1,76 +1,73 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  registerAppResource,
+  registerAppTool,
+  RESOURCE_MIME_TYPE,
+} from "@modelcontextprotocol/ext-apps/server";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const APP_RESOURCE_URI = "ui://structured-input/app";
 
-/**
- * Load the bundled single-file HTML app.
- * Vite builds this from src/mcp-app.html → dist/mcp-app.html
- */
-function loadAppHtml(): string {
-  const htmlPath = resolve(__dirname, "mcp-app.html");
-  return readFileSync(htmlPath, "utf-8");
-}
-
-export function createServer(): McpServer {
+export function createServer(appHtml: string): McpServer {
   const server = new McpServer({
     name: "structured-input",
     version: "0.1.0",
   });
 
-  // ---- Resource: the bundled HTML app ----
-  server.resource(
-    "structured-input-ui",
-    "ui://structured-input/app",
-    {
-      description: "Interactive structured input form UI",
-      mimeType: "text/html;profile=mcp-app",
-    },
+  // ---- UI resource: the bundled single-file HTML app ----
+  registerAppResource(
+    server,
+    APP_RESOURCE_URI,
+    APP_RESOURCE_URI,
+    { mimeType: RESOURCE_MIME_TYPE },
     async () => ({
       contents: [
         {
-          uri: "ui://structured-input/app",
-          mimeType: "text/html;profile=mcp-app",
-          text: loadAppHtml(),
+          uri: APP_RESOURCE_URI,
+          mimeType: RESOURCE_MIME_TYPE,
+          text: appHtml,
         },
       ],
     })
   );
 
-  // ---- Tool: collect structured input ----
-  server.tool(
+  // ---- Tool: collect structured input (renders form inline via MCP App) ----
+  registerAppTool(
+    server,
     "collect_structured_input",
-    "Display an interactive form to collect structured input from the user. " +
-      "Define the fields you need via the schema parameter. " +
-      "Supports: text, longtext, number, slider, range, single-select, multi-select, " +
-      "checklist, ranked, rating, color, date, date-range, boolean, confirm.",
     {
-      schema: z
-        .object({
-          title: z.string().optional().describe("Form heading"),
-          description: z
-            .string()
-            .optional()
-            .describe("Brief context shown below the title"),
-          fields: z.array(z.record(z.string(), z.unknown())).describe("Array of field definitions"),
-        })
-        .describe("The form schema defining what fields to render"),
+      title: "Collect structured input",
+      description:
+        "Display an interactive form to collect structured input from the user. " +
+        "Define the fields you need via the schema parameter. " +
+        "Supports: text, longtext, number, slider, range, single-select, multi-select, " +
+        "checklist, ranked, rating, color, date, date-range, boolean, confirm.",
+      inputSchema: {
+        schema: z
+          .object({
+            title: z.string().optional().describe("Form heading"),
+            description: z
+              .string()
+              .optional()
+              .describe("Brief context shown below the title"),
+            fields: z
+              .array(z.record(z.string(), z.unknown()))
+              .describe("Array of field definitions"),
+          })
+          .describe("The form schema defining what fields to render"),
+      },
+      _meta: { ui: { resourceUri: APP_RESOURCE_URI } },
     },
     async ({ schema }) => ({
+      // Model-facing content (small text summary)
       content: [
         {
           type: "text",
-          text: JSON.stringify(schema),
+          text: `Displaying structured input form: "${schema.title ?? "Untitled"}" with ${schema.fields.length} field(s).`,
         },
       ],
-      _meta: {
-        ui: {
-          resourceUri: "ui://structured-input/app",
-        },
-      },
+      // View-facing data (delivered to iframe via postMessage)
+      structuredContent: schema,
     })
   );
 
