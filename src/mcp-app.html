@@ -598,6 +598,25 @@ textarea.text-input { resize: vertical; min-height: 80px; }
 }
 .btn-danger:hover { background: #a93226; }
 
+/* ===== GENERATED IMAGE RESULT ===== */
+.image-result { display: flex; flex-direction: column; gap: var(--sp-md); }
+.image-header { padding-bottom: var(--sp-sm); border-bottom: 0.5px solid var(--glass-border-subtle); }
+.image-frame {
+  display: block; overflow: hidden; border-radius: var(--radius-lg);
+  background: rgba(255,255,255,0.28); border: 1px solid rgba(255,255,255,0.28);
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.45), 0 10px 30px rgba(0,0,0,0.12);
+  text-decoration: none;
+}
+.generated-image { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; }
+.image-meta { display: flex; flex-wrap: wrap; gap: var(--sp-xs); }
+.image-pill {
+  border-radius: var(--radius-pill); padding: 4px 9px; font-size: var(--fs-xs);
+  color: var(--warm-charcoal); background: rgba(255,255,255,0.28);
+  border: 0.5px solid rgba(255,255,255,0.25);
+}
+.image-actions { display: flex; gap: var(--sp-sm); }
+.image-actions .btn { text-decoration: none; }
+
 /* ===== TOAST ===== */
 .toast {
   position: fixed; bottom: var(--sp-lg); left: 50%;

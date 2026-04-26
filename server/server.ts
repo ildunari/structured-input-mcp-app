@@ -89,14 +89,19 @@ export function createServer(appHtml: string, options: CreateServerOptions = {})
   );
 
   if (options.generateImage) {
-    server.tool(
+    registerAppTool(
+      server,
       "generate_image",
-      "Generate an image with OpenAI GPT Image 2 and return a hosted Cloudflare URL.",
       {
-        prompt: z.string().min(1).max(8000).describe("Detailed image prompt."),
-        size: z.enum(["1024x1024", "1024x1536", "1536x1024", "auto"]).optional().describe("Image size. Default: 1024x1024."),
-        quality: z.enum(["low", "medium", "high", "auto"]).optional().describe("Generation quality. Default: medium."),
-        format: z.enum(["png", "jpeg", "webp"]).optional().describe("Output image format. Default: png."),
+        title: "Generate image",
+        description: "Generate an image with OpenAI GPT Image 2 and render it inline in the MCP App.",
+        inputSchema: {
+          prompt: z.string().min(1).max(8000).describe("Detailed image prompt."),
+          size: z.enum(["1024x1024", "1024x1536", "1536x1024", "auto"]).optional().describe("Image size. Default: 1024x1024."),
+          quality: z.enum(["low", "medium", "high", "auto"]).optional().describe("Generation quality. Default: medium."),
+          format: z.enum(["png", "jpeg", "webp"]).optional().describe("Output image format. Default: png."),
+        },
+        _meta: { ui: { resourceUri: APP_RESOURCE_URI } },
       },
       async (args) => {
         const result = await options.generateImage!({
@@ -113,6 +118,11 @@ export function createServer(appHtml: string, options: CreateServerOptions = {})
               text: `Generated image with GPT Image 2.\n\nURL: ${result.url}\nID: ${result.id}\nSize: ${result.size}\nQuality: ${result.quality}\nFormat: ${result.format}`,
             },
           ],
+          structuredContent: {
+            kind: "image-result",
+            title: "GPT Image 2 result",
+            ...result,
+          },
         };
       }
     );

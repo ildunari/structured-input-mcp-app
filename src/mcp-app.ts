@@ -378,6 +378,47 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
   },
 };
 
+function renderImageResult(result: any) {
+  const body = document.getElementById("formBody")!;
+  body.innerHTML = "";
+
+  const wrap = el("div", { className: "image-result" });
+  const header = el("div", { className: "image-header" });
+  header.appendChild(el("h1", { className: "form-title", textContent: result.title || "Generated image" }));
+
+  if (result.prompt) {
+    header.appendChild(el("p", { className: "form-description", textContent: result.prompt }));
+  }
+
+  const frame = el("a", { className: "image-frame", href: result.url, target: "_blank", rel: "noreferrer" });
+  const img = el("img", { className: "generated-image", src: result.url, alt: result.prompt || "Generated image" }) as HTMLImageElement;
+  frame.appendChild(img);
+
+  const meta = el("div", { className: "image-meta" });
+  [
+    ["Model", result.model],
+    ["Size", result.size],
+    ["Quality", result.quality],
+    ["Format", result.format],
+  ].forEach(([key, value]) => {
+    if (!value) return;
+    const pill = el("span", { className: "image-pill", textContent: `${key}: ${value}` });
+    meta.appendChild(pill);
+  });
+
+  const actions = el("div", { className: "image-actions" });
+  const open = el("a", { className: "btn btn-primary", href: result.url, target: "_blank", rel: "noreferrer", textContent: "Open image" });
+  const copy = el("button", { className: "btn btn-ghost", textContent: "Copy URL" });
+  copy.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(result.url);
+    toast("Image URL copied");
+  });
+  actions.append(open, copy);
+
+  wrap.append(header, frame, meta, actions);
+  body.appendChild(wrap);
+}
+
 // ===== RENDER FORM FROM SCHEMA =====
 function renderForm(schema: any) {
   const body = document.getElementById("formBody")!;
@@ -468,7 +509,9 @@ const app = new App({ name: "Structured Input", version: "0.1.0" });
 // Receive the tool result with the form schema in structuredContent
 app.ontoolresult = (result) => {
   const schema = (result.structuredContent ?? result) as Record<string, unknown>;
-  if (schema.fields) {
+  if ((schema as any).kind === "image-result") {
+    renderImageResult(schema);
+  } else if (schema.fields) {
     renderForm(schema);
 
     // Watch for value changes and update model context
