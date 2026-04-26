@@ -16,5 +16,8 @@
       "binding": "IMAGES",
       "id": "638dba4e956f4444be4dc3a89a3e4b81"
     }
-  ]
+  ],
+  "vars": {
+    "IMAGE_MONTHLY_BUDGET_USD": "10"
+  }
 }

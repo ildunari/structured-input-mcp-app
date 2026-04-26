@@ -19,6 +19,8 @@ export type GenerateImageResult = Required<GenerateImageArgs> & {
   id: string;
   url: string;
   model: "gpt-image-2";
+  estimatedCostUsd?: string;
+  monthlyBudgetUsd?: string;
 };
 
 export type CreateServerOptions = {
@@ -115,7 +117,7 @@ export function createServer(appHtml: string, options: CreateServerOptions = {})
           content: [
             {
               type: "text",
-              text: `Generated image with GPT Image 2.\n\nURL: ${result.url}\nID: ${result.id}\nSize: ${result.size}\nQuality: ${result.quality}\nFormat: ${result.format}`,
+              text: `Generated image with GPT Image 2.\n\nURL: ${result.url}\nID: ${result.id}\nSize: ${result.size}\nQuality: ${result.quality}\nFormat: ${result.format}\nEstimated cost: $${result.estimatedCostUsd ?? "unknown"}\nMonthly cap: $${result.monthlyBudgetUsd ?? "10.00"}`,
             },
           ],
           structuredContent: {
