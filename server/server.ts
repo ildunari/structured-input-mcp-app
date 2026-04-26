@@ -8,7 +8,24 @@ import {
 
 const APP_RESOURCE_URI = "ui://structured-input/app";
 
-export function createServer(appHtml: string): McpServer {
+export type GenerateImageArgs = {
+  prompt: string;
+  size?: "1024x1024" | "1024x1536" | "1536x1024" | "auto";
+  quality?: "low" | "medium" | "high" | "auto";
+  format?: "png" | "jpeg" | "webp";
+};
+
+export type GenerateImageResult = Required<GenerateImageArgs> & {
+  id: string;
+  url: string;
+  model: "gpt-image-2";
+};
+
+export type CreateServerOptions = {
+  generateImage?: (args: GenerateImageArgs) => Promise<GenerateImageResult>;
+};
+
+export function createServer(appHtml: string, options: CreateServerOptions = {}): McpServer {
   const server = new McpServer({
     name: "structured-input",
     version: "0.1.0",
@@ -70,6 +87,36 @@ export function createServer(appHtml: string): McpServer {
       structuredContent: schema,
     })
   );
+
+  if (options.generateImage) {
+    server.tool(
+      "generate_image",
+      "Generate an image with OpenAI GPT Image 2 and return a hosted Cloudflare URL.",
+      {
+        prompt: z.string().min(1).max(8000).describe("Detailed image prompt."),
+        size: z.enum(["1024x1024", "1024x1536", "1536x1024", "auto"]).optional().describe("Image size. Default: 1024x1024."),
+        quality: z.enum(["low", "medium", "high", "auto"]).optional().describe("Generation quality. Default: medium."),
+        format: z.enum(["png", "jpeg", "webp"]).optional().describe("Output image format. Default: png."),
+      },
+      async (args) => {
+        const result = await options.generateImage!({
+          prompt: args.prompt,
+          size: args.size,
+          quality: args.quality,
+          format: args.format,
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Generated image with GPT Image 2.\n\nURL: ${result.url}\nID: ${result.id}\nSize: ${result.size}\nQuality: ${result.quality}\nFormat: ${result.format}`,
+            },
+          ],
+        };
+      }
+    );
+  }
 
   return server;
 }
