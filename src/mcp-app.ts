@@ -5,6 +5,7 @@ const ICONS = {
   check: '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   drag: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg>',
   close: '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>',
+  info: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 7.4v3.7"/><path d="M8 4.9h.01"/></svg>',
   star: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
 };
 
@@ -25,6 +26,23 @@ function toast(msg: string) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2400);
+}
+
+function parseImageAspect(size?: string): string | null {
+  const match = size?.match(/^(\d+)x(\d+)$/);
+  if (!match) return null;
+  return `${match[1]} / ${match[2]}`;
+}
+
+function requestHostResize() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      void app.sendSizeChanged({
+        width: Math.ceil(document.documentElement.scrollWidth || window.innerWidth),
+        height: Math.ceil(document.documentElement.scrollHeight),
+      });
+    });
+  });
 }
 
 // ===== SLIDER INIT =====
@@ -381,18 +399,53 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
 function renderImageResult(result: any) {
   const body = document.getElementById("formBody")!;
   body.innerHTML = "";
+  document.body.classList.add("image-result-view");
+  document.getElementById("formApp")?.classList.add("result-shell");
 
   const wrap = el("div", { className: "image-result" });
   const header = el("div", { className: "image-header" });
   header.appendChild(el("h1", { className: "form-title", textContent: result.title || "Generated image" }));
 
-  if (result.prompt) {
-    header.appendChild(el("p", { className: "form-description", textContent: result.prompt }));
-  }
-
-  const frame = el("a", { className: "image-frame", href: result.url, target: "_blank", rel: "noreferrer" });
+  const frame = el("div", { className: "image-frame" });
+  const imageAspect = parseImageAspect(result.size);
+  if (imageAspect) frame.style.setProperty("--image-aspect", imageAspect);
   const img = el("img", { className: "generated-image", src: result.url, alt: result.prompt || "Generated image" }) as HTMLImageElement;
+  img.addEventListener("load", requestHostResize, { once: true });
   frame.appendChild(img);
+
+  let promptDialog: HTMLDialogElement | null = null;
+  if (result.prompt) {
+    const info = el("button", { className: "image-info-btn" }) as HTMLButtonElement;
+    info.type = "button";
+    info.setAttribute("aria-label", "View prompt");
+    info.innerHTML = ICONS.info;
+    frame.appendChild(info);
+
+    promptDialog = el("dialog", { className: "prompt-dialog" }) as HTMLDialogElement;
+    const dialogPanel = el("div", { className: "prompt-dialog-panel" });
+    const close = el("button", { className: "prompt-dialog-close" }) as HTMLButtonElement;
+    close.type = "button";
+    close.setAttribute("aria-label", "Close prompt");
+    close.innerHTML = ICONS.close;
+    close.addEventListener("click", () => promptDialog?.close());
+    dialogPanel.append(
+      close,
+      el("h2", { className: "prompt-dialog-title", textContent: "Prompt" }),
+      el("p", { className: "prompt-dialog-text", textContent: result.prompt })
+    );
+    promptDialog.appendChild(dialogPanel);
+    promptDialog.addEventListener("click", (event) => {
+      if (event.target === promptDialog) promptDialog?.close();
+    });
+    info.addEventListener("click", () => {
+      if (typeof promptDialog?.showModal === "function") {
+        promptDialog.showModal();
+      } else {
+        promptDialog?.setAttribute("open", "");
+      }
+      requestHostResize();
+    });
+  }
 
   const meta = el("div", { className: "image-meta" });
   [
@@ -417,12 +470,16 @@ function renderImageResult(result: any) {
 
   wrap.append(header, frame, meta, actions);
   body.appendChild(wrap);
+  if (promptDialog) body.appendChild(promptDialog);
+  requestHostResize();
 }
 
 // ===== RENDER FORM FROM SCHEMA =====
 function renderForm(schema: any) {
   const body = document.getElementById("formBody")!;
   body.innerHTML = "";
+  document.body.classList.remove("image-result-view");
+  document.getElementById("formApp")?.classList.remove("result-shell");
 
   if (schema.title || schema.description) {
     const hdr = el("div", { className: "form-header" });
