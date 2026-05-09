@@ -10,7 +10,15 @@ const ICONS = {
 };
 
 // ===== STATE =====
+type SubmitStatus = "editing" | "submitted" | "cancelled";
+type ValidationIssue = { id: string; label?: string; message: string };
+type ValidationSummary = { valid: boolean; issues: ValidationIssue[] };
+
 const state: Record<string, () => unknown> = {};
+let activeSchema: any | null = null;
+let contextTimer: number | undefined;
+let formListenersBound = false;
+let submitStatus: SubmitStatus = "editing";
 
 // ===== HELPERS =====
 function el(tag: string, props: Record<string, unknown> = {}): HTMLElement {
@@ -26,6 +34,86 @@ function toast(msg: string) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2400);
+}
+
+function resetRenderState() {
+  Object.keys(state).forEach((key) => delete state[key]);
+  activeSchema = null;
+  submitStatus = "editing";
+  if (contextTimer !== undefined) {
+    window.clearTimeout(contextTimer);
+    contextTimer = undefined;
+  }
+}
+
+function clearView() {
+  resetRenderState();
+  const body = document.getElementById("formBody")!;
+  body.innerHTML = "";
+  document.querySelector(".form-footer")?.remove();
+}
+
+function notifyValueChanged(target: EventTarget) {
+  target.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function onActionKey(event: KeyboardEvent, callback: () => void) {
+  if (event.key !== " " && event.key !== "Enter") return;
+  event.preventDefault();
+  callback();
+}
+
+function setToggleState(el: HTMLElement, on: boolean) {
+  el.classList.toggle("on", on);
+  el.setAttribute("aria-checked", String(on));
+}
+
+function setSelectedState(el: HTMLElement, selected: boolean) {
+  el.classList.toggle("sel", selected);
+  el.setAttribute("aria-checked", String(selected));
+  el.setAttribute("aria-pressed", String(selected));
+}
+
+function isEmptyValue(value: unknown): boolean {
+  if (value == null || value === "") return true;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object") return Object.values(value as Record<string, unknown>).every(isEmptyValue);
+  return false;
+}
+
+function findFieldGroup(id: string): HTMLElement | null {
+  return [...document.querySelectorAll<HTMLElement>(".field-group")].find((group) => group.dataset.fieldId === id) ?? null;
+}
+
+function setFieldError(id: string, message: string | null) {
+  const group = findFieldGroup(id);
+  if (!group) return;
+
+  group.classList.toggle("field-invalid", Boolean(message));
+  const existing = group.querySelector<HTMLElement>(".field-error");
+  if (existing) existing.remove();
+
+  const controls = group.querySelectorAll<HTMLElement>("input, textarea, [role='checkbox'], [role='radio'], [role='switch'], [role='radiogroup']");
+  controls.forEach((control) => control.setAttribute("aria-invalid", String(Boolean(message))));
+
+  if (!message) {
+    controls.forEach((control) => {
+      const describedBy = (control.getAttribute("aria-describedby") || "")
+        .split(/\s+/)
+        .filter((idRef) => idRef && idRef !== "err-" + id);
+      if (describedBy.length) control.setAttribute("aria-describedby", describedBy.join(" "));
+      else control.removeAttribute("aria-describedby");
+    });
+    return;
+  }
+  const error = el("p", { className: "field-error", textContent: message });
+  error.id = "err-" + id;
+  controls.forEach((control) => {
+    const describedBy = new Set((control.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+    describedBy.add(error.id);
+    control.setAttribute("aria-describedby", [...describedBy].join(" "));
+  });
+  group.appendChild(error);
 }
 
 function parseImageAspect(size?: string): string | null {
@@ -45,6 +133,93 @@ function requestHostResize() {
   });
 }
 
+// ===== MODEL CONTEXT + VALIDATION =====
+function getValues(): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  Object.entries(state).forEach(([k, getter]) => {
+    if (!k.includes(".")) values[k] = getter();
+  });
+  return values;
+}
+
+function validateForm(): ValidationSummary {
+  const issues: ValidationIssue[] = [];
+  const values = getValues();
+
+  for (const field of activeSchema?.fields ?? []) {
+    let message: string | null = null;
+    const value = values[field.id];
+
+    if (field.required && isEmptyValue(value)) {
+      message = "This field is required.";
+    } else if (field.type === "number" && typeof value === "number") {
+      if (field.min != null && value < field.min) message = `Must be at least ${field.min}.`;
+      if (field.max != null && value > field.max) message = `Must be at most ${field.max}.`;
+    } else if (field.type === "text" && typeof value === "string" && value) {
+      if (field.pattern === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) message = "Enter a valid email address.";
+      if (field.pattern === "url") {
+        try {
+          new URL(value);
+        } catch {
+          message = "Enter a valid URL.";
+        }
+      }
+    } else if (field.type === "date-range" && field.required && typeof value === "object" && value) {
+      const range = value as { start?: unknown; end?: unknown };
+      if (!range.start || !range.end) message = "Choose both start and end dates.";
+    }
+
+    setFieldError(field.id, message);
+    if (message) issues.push({ id: field.id, label: field.label, message });
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+function buildFormContext(status: SubmitStatus = submitStatus) {
+  const validation = validateForm();
+  return {
+    kind: "structured-input-state",
+    title: activeSchema?.title ?? null,
+    status,
+    values: getValues(),
+    validation,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function updateStructuredModelContext(status: SubmitStatus = submitStatus) {
+  if (!activeSchema) return;
+  const snapshot = buildFormContext(status);
+  await app.updateModelContext({
+    structuredContent: snapshot,
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(snapshot, null, 2),
+      },
+    ],
+  });
+}
+
+function scheduleModelContextUpdate() {
+  if (!activeSchema) return;
+  if (contextTimer !== undefined) window.clearTimeout(contextTimer);
+  contextTimer = window.setTimeout(() => {
+    contextTimer = undefined;
+    void updateStructuredModelContext();
+  }, 180);
+}
+
+function bindFormListeners() {
+  if (formListenersBound) return;
+  const body = document.getElementById("formBody")!;
+  body.addEventListener("input", scheduleModelContextUpdate);
+  body.addEventListener("change", scheduleModelContextUpdate);
+  body.addEventListener("click", () => window.setTimeout(scheduleModelContextUpdate, 0));
+  formListenersBound = true;
+}
+
 // ===== SLIDER INIT =====
 function initSlider(wrap: HTMLElement) {
   const tr = wrap.querySelector(".slider-track") as HTMLElement;
@@ -59,6 +234,8 @@ function initSlider(wrap: HTMLElement) {
     fl.style.width = p * 100 + "%";
     th.style.left = p * 100 + "%";
     vi.value = v.toFixed(st < 1 ? 1 : 0);
+    th.setAttribute("aria-valuenow", vi.value);
+    notifyValueChanged(vi);
   }
   function ptr(e: MouseEvent | TouchEvent) {
     const r = tr.getBoundingClientRect();
@@ -69,6 +246,13 @@ function initSlider(wrap: HTMLElement) {
   th.addEventListener("pointerdown", (e) => { d = true; e.preventDefault(); th.setPointerCapture(e.pointerId); });
   th.addEventListener("pointermove", (e) => { if (d) ptr(e); });
   th.addEventListener("pointerup", () => (d = false));
+  th.addEventListener("keydown", (e) => {
+    const current = Number(vi.value || mn);
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowDown" && e.key !== "ArrowRight" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+    e.preventDefault();
+    const next = e.key === "Home" ? mn : e.key === "End" ? mx : current + (e.key === "ArrowLeft" || e.key === "ArrowDown" ? -st : st);
+    set((next - mn) / (mx - mn));
+  });
   tr.addEventListener("click", ptr as EventListener);
   vi.addEventListener("change", () => { const v = Math.max(mn, Math.min(mx, +vi.value)); set((v - mn) / (mx - mn)); });
 }
@@ -86,6 +270,9 @@ function initRange(wrap: HTMLElement, defs: number[], lMin: HTMLElement, lMax: H
     ths[0].style.left = p0 + "%"; ths[1].style.left = p1 + "%";
     lMin.textContent = String(Math.round(vals[0]));
     lMax.textContent = String(Math.round(vals[1]));
+    ths[0].setAttribute("aria-valuenow", String(Math.round(vals[0])));
+    ths[1].setAttribute("aria-valuenow", String(Math.round(vals[1])));
+    notifyValueChanged(wrap);
   }
   ths.forEach((th, i) => {
     let d = false;
@@ -99,6 +286,15 @@ function initRange(wrap: HTMLElement, defs: number[], lMin: HTMLElement, lMax: H
       vals[i] = v; upd();
     });
     th.addEventListener("pointerup", () => (d = false));
+    th.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowDown" && e.key !== "ArrowRight" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+      e.preventDefault();
+      const delta = e.key === "ArrowLeft" || e.key === "ArrowDown" ? -st : st;
+      let v = e.key === "Home" ? mn : e.key === "End" ? mx : vals[i] + delta;
+      if (i === 0) v = Math.min(v, vals[1] - st); else v = Math.max(v, vals[0] + st);
+      vals[i] = Math.max(mn, Math.min(mx, v));
+      upd();
+    });
   });
 }
 
@@ -108,7 +304,7 @@ function initDrag(ul: HTMLElement) {
   ul.querySelectorAll(".ranked-item:not(.locked)").forEach((item) => {
     const htmlItem = item as HTMLElement;
     htmlItem.addEventListener("dragstart", (e) => { dragEl = htmlItem; htmlItem.style.opacity = "0.4"; (e as DragEvent).dataTransfer!.effectAllowed = "move"; });
-    htmlItem.addEventListener("dragend", () => { htmlItem.style.opacity = "1"; dragEl = null; renum(ul); });
+    htmlItem.addEventListener("dragend", () => { htmlItem.style.opacity = "1"; dragEl = null; renum(ul); notifyValueChanged(ul); });
     htmlItem.addEventListener("dragover", (e) => { e.preventDefault(); (e as DragEvent).dataTransfer!.dropEffect = "move"; });
     htmlItem.addEventListener("drop", (e) => {
       e.preventDefault();
@@ -118,6 +314,7 @@ function initDrag(ul: HTMLElement) {
         fi < ti ? htmlItem.after(dragEl) : htmlItem.before(dragEl);
       }
       renum(ul);
+      notifyValueChanged(ul);
     });
     htmlItem.addEventListener("touchstart", () => { dragEl = htmlItem; }, { passive: true });
     htmlItem.addEventListener("touchmove", (e) => {
@@ -131,7 +328,7 @@ function initDrag(ul: HTMLElement) {
         if (t.clientY > m && o.compareDocumentPosition(dragEl) & 2) { o.after(dragEl); break; }
       }
     }, { passive: false });
-    htmlItem.addEventListener("touchend", () => { dragEl = null; renum(ul); });
+    htmlItem.addEventListener("touchend", () => { dragEl = null; renum(ul); notifyValueChanged(ul); });
   });
 }
 function renum(ul: HTMLElement) { ul.querySelectorAll(".rank-num").forEach((n, i) => (n.textContent = String(i + 1))); }
@@ -170,6 +367,12 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
     track.dataset.min = mn; track.dataset.max = mx; track.dataset.step = st;
     const fill = el("div", { className: "slider-fill" }); fill.style.width = pct + "%";
     const thumb = el("div", { className: "slider-thumb" }); thumb.style.left = pct + "%";
+    thumb.tabIndex = 0;
+    thumb.setAttribute("role", "slider");
+    thumb.setAttribute("aria-label", f.label || f.id);
+    thumb.setAttribute("aria-valuemin", String(mn));
+    thumb.setAttribute("aria-valuemax", String(mx));
+    thumb.setAttribute("aria-valuenow", String(def));
     track.append(fill, thumb);
     const vi = el("input", { type: "number", className: "slider-val", min: mn, max: mx, step: st, value: def.toFixed(st < 1 ? 1 : 0) }) as HTMLInputElement;
     wrap.append(track, vi);
@@ -188,6 +391,14 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
     const fill = el("div", { className: "slider-fill" }); fill.style.left = p0 + "%"; fill.style.width = (p1 - p0) + "%";
     const t0 = el("div", { className: "slider-thumb" }); t0.style.left = p0 + "%"; t0.dataset.role = "min";
     const t1 = el("div", { className: "slider-thumb" }); t1.style.left = p1 + "%"; t1.dataset.role = "max";
+    [t0, t1].forEach((thumb, index) => {
+      thumb.tabIndex = 0;
+      thumb.setAttribute("role", "slider");
+      thumb.setAttribute("aria-label", `${f.label || f.id} ${index === 0 ? "minimum" : "maximum"}`);
+      thumb.setAttribute("aria-valuemin", String(mn));
+      thumb.setAttribute("aria-valuemax", String(mx));
+      thumb.setAttribute("aria-valuenow", String(Math.round(defs[index])));
+    });
     track.append(fill, t0, t1);
     const labels = el("div", { className: "range-labels" });
     const lMin = el("span", { textContent: String(Math.round(defs[0])) });
@@ -200,11 +411,23 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
   },
 
   "single-select"(f) {
-    const wrap = el("div", { className: "chips" }); (wrap as HTMLElement).dataset.mode = "single";
+    const wrap = el("div", { className: "chips", id: "f-" + f.id });
+    wrap.dataset.mode = "single";
+    wrap.setAttribute("role", "radiogroup");
+    wrap.setAttribute("aria-label", f.label || f.id);
     f.options.forEach((o: any) => {
       const c = el("div", { className: "chip" + (f.default === o.value ? " sel" : ""), textContent: o.label });
       c.dataset.value = o.value;
-      c.addEventListener("click", () => { wrap.querySelectorAll(".chip").forEach((x) => x.classList.remove("sel")); c.classList.add("sel"); });
+      c.tabIndex = 0;
+      c.setAttribute("role", "radio");
+      setSelectedState(c, f.default === o.value);
+      const select = () => {
+        wrap.querySelectorAll<HTMLElement>(".chip").forEach((x) => setSelectedState(x, false));
+        setSelectedState(c, true);
+        notifyValueChanged(c);
+      };
+      c.addEventListener("click", select);
+      c.addEventListener("keydown", (event) => onActionKey(event, select));
       wrap.appendChild(c);
     });
     state[f.id] = () => (wrap.querySelector(".sel") as HTMLElement)?.dataset.value ?? null;
@@ -213,11 +436,22 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
 
   "multi-select"(f) {
     const defs = f.default || [];
-    const wrap = el("div", { className: "chips" }); (wrap as HTMLElement).dataset.mode = "multi";
+    const wrap = el("div", { className: "chips", id: "f-" + f.id });
+    wrap.dataset.mode = "multi";
+    wrap.setAttribute("role", "group");
+    wrap.setAttribute("aria-label", f.label || f.id);
     f.options.forEach((o: any) => {
       const c = el("div", { className: "chip" + (defs.includes(o.value) ? " sel" : ""), textContent: o.label });
       c.dataset.value = o.value;
-      c.addEventListener("click", () => c.classList.toggle("sel"));
+      c.tabIndex = 0;
+      c.setAttribute("role", "checkbox");
+      setSelectedState(c, defs.includes(o.value));
+      const toggle = () => {
+        setSelectedState(c, !c.classList.contains("sel"));
+        notifyValueChanged(c);
+      };
+      c.addEventListener("click", toggle);
+      c.addEventListener("keydown", (event) => onActionKey(event, toggle));
       wrap.appendChild(c);
     });
     state[f.id] = () => [...wrap.querySelectorAll(".sel")].map((c) => (c as HTMLElement).dataset.value);
@@ -234,22 +468,38 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
         const hdr = el("div", { className: "cl-header" });
         hdr.appendChild(el("span", { textContent: gName || "Items" }));
         if (f.showSelectAll) {
-          const btn = el("button", { className: "cl-action", textContent: "Select all" });
+          const btn = el("button", { className: "cl-action", textContent: "Select all" }) as HTMLButtonElement;
+          btn.type = "button";
           btn.addEventListener("click", () => {
-            const lis = plate.querySelectorAll(".cl-item");
+            const lis = plate.querySelectorAll<HTMLElement>(".cl-item");
             const allOn = [...lis].every((l) => l.classList.contains("on"));
-            lis.forEach((l) => (allOn ? l.classList.remove("on") : l.classList.add("on")));
+            lis.forEach((l) => {
+              l.classList.toggle("on", !allOn);
+              l.setAttribute("aria-checked", String(!allOn));
+            });
             btn.textContent = allOn ? "Select all" : "Deselect all";
+            notifyValueChanged(plate);
           });
           hdr.appendChild(btn);
         }
         plate.appendChild(hdr);
       }
       const ul = el("ul", { className: "checklist" });
+      ul.setAttribute("role", "group");
+      ul.setAttribute("aria-label", gName || f.label || "Checklist");
       items.forEach((it: any) => {
         const li = el("li", { className: "cl-item" + (defs.includes(it.id) ? " on" : "") });
         li.dataset.id = it.id;
-        li.addEventListener("click", () => li.classList.toggle("on"));
+        li.tabIndex = 0;
+        li.setAttribute("role", "checkbox");
+        li.setAttribute("aria-checked", String(defs.includes(it.id)));
+        const toggle = () => {
+          li.classList.toggle("on");
+          li.setAttribute("aria-checked", String(li.classList.contains("on")));
+          notifyValueChanged(li);
+        };
+        li.addEventListener("click", toggle);
+        li.addEventListener("keydown", (event) => onActionKey(event, toggle));
         const box = el("div", { className: "cl-box" }); box.innerHTML = ICONS.check;
         li.appendChild(box);
         li.appendChild(el("span", { className: "cl-label", textContent: it.label }));
@@ -273,8 +523,10 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
       const label = el("span", { className: "ranked-label", textContent: it.label });
       li.append(handle, num, label);
       if (f.removable && !it.locked) {
-        const rm = el("button", { className: "ranked-rm" }); rm.innerHTML = ICONS.close;
-        rm.addEventListener("click", () => { li.remove(); renum(ul); });
+        const rm = el("button", { className: "ranked-rm" }) as HTMLButtonElement; rm.innerHTML = ICONS.close;
+        rm.type = "button";
+        rm.setAttribute("aria-label", `Remove ${it.label}`);
+        rm.addEventListener("click", () => { li.remove(); renum(ul); notifyValueChanged(ul); });
         li.appendChild(rm);
       }
       ul.appendChild(li);
@@ -287,19 +539,43 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
   rating(f) {
     const max = f.max || 5;
     const def = f.default || 0;
-    const wrap = el("div", { className: "rating" });
+    const wrap = el("div", { className: "rating", id: "f-" + f.id });
+    wrap.setAttribute("role", "radiogroup");
+    wrap.setAttribute("aria-label", f.label || f.id);
     const lbl = el("span", { className: "rating-lbl", textContent: def + "/" + max });
+    const setRating = (value: number) => {
+      wrap.querySelectorAll<SVGElement>(".star").forEach((x) => {
+        const on = +x.dataset.v! <= value;
+        x.classList.toggle("on", on);
+        x.setAttribute("aria-checked", String(+x.dataset.v! === value));
+        x.tabIndex = +x.dataset.v! === value || (value === 0 && +x.dataset.v! === 1) ? 0 : -1;
+      });
+      lbl.textContent = value + "/" + max;
+      notifyValueChanged(wrap);
+    };
     for (let i = 1; i <= max; i++) {
       const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       s.setAttribute("viewBox", "0 0 24 24");
+      s.setAttribute("role", "radio");
+      s.setAttribute("aria-label", `${i} of ${max}`);
+      s.setAttribute("aria-checked", String(i === def));
+      s.tabIndex = i === def || (def === 0 && i === 1) ? 0 : -1;
       s.classList.add("star");
       if (i <= def) s.classList.add("on");
       s.dataset.v = String(i);
       s.innerHTML = ICONS.star;
       s.addEventListener("click", () => {
         const v = +s.dataset.v!;
-        wrap.querySelectorAll(".star").forEach((x) => x.classList.toggle("on", +((x as SVGElement).dataset.v!) <= v));
-        lbl.textContent = v + "/" + max;
+        setRating(v);
+      });
+      s.addEventListener("keydown", (event) => {
+        const current = wrap.querySelectorAll(".star.on").length;
+        if (event.key === " " || event.key === "Enter") return onActionKey(event, () => setRating(+s.dataset.v!));
+        if (!["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === "Home" ? 1 : event.key === "End" ? max : Math.max(1, Math.min(max, current + (event.key === "ArrowLeft" || event.key === "ArrowDown" ? -1 : 1)));
+        setRating(next);
+        wrap.querySelector<SVGElement>(`.star[data-v="${next}"]`)?.focus();
       });
       s.addEventListener("mouseenter", () => {
         const v = +s.dataset.v!;
@@ -319,15 +595,30 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
       const group = el("div", { className: "color-group" });
       group.appendChild(el("div", { className: "color-role", textContent: role.label }));
       const sw = el("div", { className: "swatches" }); sw.dataset.role = role.role;
+      sw.setAttribute("role", "radiogroup");
+      sw.setAttribute("aria-label", role.label);
       role.swatches.forEach((hex: string, i: number) => {
         const s = el("div", { className: "swatch" + (i === 0 ? " sel" : "") });
         s.style.background = hex; s.dataset.c = hex;
-        s.addEventListener("click", () => {
-          sw.querySelectorAll(".swatch").forEach((x) => x.classList.remove("sel"));
+        s.tabIndex = i === 0 ? 0 : -1;
+        s.setAttribute("role", "radio");
+        s.setAttribute("aria-label", hex);
+        s.setAttribute("aria-checked", String(i === 0));
+        const select = () => {
+          sw.querySelectorAll<HTMLElement>(".swatch").forEach((x) => {
+            x.classList.remove("sel");
+            x.setAttribute("aria-checked", "false");
+            x.tabIndex = -1;
+          });
           s.classList.add("sel");
+          s.setAttribute("aria-checked", "true");
+          s.tabIndex = 0;
           const hi = group.querySelector(".hex-in") as HTMLInputElement | null;
           if (hi) hi.value = hex;
-        });
+          notifyValueChanged(s);
+        };
+        s.addEventListener("click", select);
+        s.addEventListener("keydown", (event) => onActionKey(event, select));
         sw.appendChild(s);
       });
       group.appendChild(sw);
@@ -365,9 +656,18 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
 
   boolean(f) {
     const wrap = el("div", { className: "toggle-row" });
-    const tog = el("div", { className: "toggle" + (f.default ? " on" : "") });
+    const tog = el("div", { className: "toggle" + (f.default ? " on" : ""), id: "f-" + f.id });
+    tog.tabIndex = 0;
+    tog.setAttribute("role", "switch");
+    tog.setAttribute("aria-label", f.label || f.id);
+    tog.setAttribute("aria-checked", String(Boolean(f.default)));
     tog.appendChild(el("div", { className: "toggle-knob" }));
-    tog.addEventListener("click", () => tog.classList.toggle("on"));
+    const toggle = () => {
+      setToggleState(tog, !tog.classList.contains("on"));
+      notifyValueChanged(tog);
+    };
+    tog.addEventListener("click", toggle);
+    tog.addEventListener("keydown", (event) => onActionKey(event, toggle));
     wrap.append(tog, el("span", { className: "toggle-text", textContent: f.label }));
     state[f.id] = () => tog.classList.contains("on");
     return wrap;
@@ -387,8 +687,8 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
     let confirmed: boolean | null = null;
     const bConfirm = el("button", { className: "btn btn-danger", textContent: f.confirmLabel || "Confirm" });
     const bCancel = el("button", { className: "btn btn-ghost", textContent: f.cancelLabel || "Cancel" });
-    bConfirm.addEventListener("click", () => { confirmed = true; toast(f.confirmLabel || "Confirmed"); });
-    bCancel.addEventListener("click", () => { confirmed = false; toast(f.cancelLabel || "Cancelled"); });
+    bConfirm.addEventListener("click", () => { confirmed = true; toast(f.confirmLabel || "Confirmed"); notifyValueChanged(panel); });
+    bCancel.addEventListener("click", () => { confirmed = false; toast(f.cancelLabel || "Cancelled"); notifyValueChanged(panel); });
     btns.append(bConfirm, bCancel);
     panel.appendChild(btns);
     state[f.id] = () => confirmed;
@@ -396,13 +696,13 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
   },
 };
 
-function renderImageResult(result: any) {
-  const body = document.getElementById("formBody")!;
-  body.innerHTML = "";
-  document.body.classList.add("image-result-view");
-  document.getElementById("formApp")?.classList.add("result-shell");
+function resultModality(result: any): string {
+  const kind = typeof result.kind === "string" ? result.kind.replace(/-result$/, "") : "";
+  return result.modality || result.type || kind || (result.url ? "image" : "text");
+}
 
-  const wrap = el("div", { className: "image-result" });
+function renderImageResult(result: any): HTMLElement {
+  const wrap = el("div", { className: "result result-image image-result" });
   const header = el("div", { className: "image-header" });
   header.appendChild(el("h1", { className: "form-title", textContent: result.title || "Generated image" }));
 
@@ -469,17 +769,78 @@ function renderImageResult(result: any) {
   actions.append(open, copy);
 
   wrap.append(header, frame, meta, actions);
-  body.appendChild(wrap);
-  if (promptDialog) body.appendChild(promptDialog);
+  if (promptDialog) wrap.appendChild(promptDialog);
+  return wrap;
+}
+
+function renderScalarResult(result: any, modality: string): HTMLElement {
+  const wrap = el("div", { className: `result result-${modality}` });
+  wrap.appendChild(el("h1", { className: "form-title", textContent: result.title || `${modality[0].toUpperCase()}${modality.slice(1)} result` }));
+  const content = result.content ?? result.text ?? result.markdown ?? result.code ?? result.data ?? "";
+  const pre = el("pre", { className: "result-pre" });
+  const code = el("code", { textContent: typeof content === "string" ? content : JSON.stringify(content, null, 2) });
+  if (modality === "code" && result.language) code.className = `language-${result.language}`;
+  pre.appendChild(code);
+  wrap.appendChild(pre);
+  return wrap;
+}
+
+function renderTableResult(result: any): HTMLElement {
+  const rows = Array.isArray(result.rows) ? result.rows : Array.isArray(result.data) ? result.data : [];
+  const columns = result.columns || (rows[0] && typeof rows[0] === "object" ? Object.keys(rows[0]) : []);
+  const wrap = el("div", { className: "result result-table" });
+  wrap.appendChild(el("h1", { className: "form-title", textContent: result.title || "Table result" }));
+  const scroller = el("div", { className: "table-scroll" });
+  const table = el("table", { className: "result-table-grid" });
+  const thead = el("thead");
+  const headRow = el("tr");
+  columns.forEach((column: any) => headRow.appendChild(el("th", { textContent: String(column.label ?? column.key ?? column) })));
+  thead.appendChild(headRow);
+  const tbody = el("tbody");
+  rows.forEach((row: any) => {
+    const tr = el("tr");
+    columns.forEach((column: any) => {
+      const key = column.key ?? column;
+      tr.appendChild(el("td", { textContent: String(typeof row === "object" ? row[key] ?? "" : row) }));
+    });
+    tbody.appendChild(tr);
+  });
+  table.append(thead, tbody);
+  scroller.appendChild(table);
+  wrap.appendChild(scroller);
+  return wrap;
+}
+
+function renderResult(result: any) {
+  clearView();
+  const body = document.getElementById("formBody")!;
+  document.body.classList.add("result-view", "image-result-view");
+  document.getElementById("formApp")?.classList.add("result-shell");
+
+  const modality = resultModality(result);
+  let node: HTMLElement;
+  if (modality === "image") node = renderImageResult(result);
+  else if (modality === "json") node = renderScalarResult({ ...result, content: result.content ?? result.data ?? result }, "json");
+  else if (modality === "table") node = renderTableResult(result);
+  else if (modality === "error") node = renderScalarResult({ ...result, title: result.title || "Error", content: result.message ?? result.error ?? result.content }, "error");
+  else node = renderScalarResult(result, ["code", "markdown", "text"].includes(modality) ? modality : "text");
+
+  body.appendChild(node);
   requestHostResize();
 }
 
 // ===== RENDER FORM FROM SCHEMA =====
 function renderForm(schema: any) {
+  clearView();
+  activeSchema = schema;
   const body = document.getElementById("formBody")!;
-  body.innerHTML = "";
-  document.body.classList.remove("image-result-view");
-  document.getElementById("formApp")?.classList.remove("result-shell");
+  const shell = document.getElementById("formApp")!;
+  document.body.classList.remove("result-view", "image-result-view");
+  shell.classList.remove("result-shell");
+  document.documentElement.dataset.density = schema.density || "cozy";
+  shell.dataset.layout = schema.layout || "stacked";
+  if (schema.tokens?.accent) document.documentElement.style.setProperty("--accent", schema.tokens.accent);
+  if (schema.tokens?.danger) document.documentElement.style.setProperty("--danger", schema.tokens.danger);
 
   if (schema.title || schema.description) {
     const hdr = el("div", { className: "form-header" });
@@ -494,15 +855,18 @@ function renderForm(schema: any) {
 
     if (f.type === "boolean") {
       const group = el("div", { className: "field-group" });
+      group.dataset.fieldId = f.id;
       group.appendChild(renderer(f));
       body.appendChild(group);
       return;
     }
 
     const group = el("div", { className: "field-group" });
+    group.dataset.fieldId = f.id;
     if (f.label && f.type !== "confirm") {
-      const lbl = el("label", { className: "field-label" });
+      const lbl = el("label", { className: "field-label" }) as HTMLLabelElement;
       lbl.textContent = f.label;
+      lbl.htmlFor = "f-" + f.id;
       if (f.required) { const req = el("span", { className: "req", textContent: " *" }); lbl.appendChild(req); }
       group.appendChild(lbl);
     }
@@ -510,15 +874,50 @@ function renderForm(schema: any) {
     group.appendChild(renderer(f));
     body.appendChild(group);
   });
+
+  renderSubmitFooter(schema);
+  validateForm();
+  void updateStructuredModelContext();
 }
 
-// ===== GET ALL VALUES =====
-function getValues(): Record<string, unknown> {
-  const values: Record<string, unknown> = {};
-  Object.entries(state).forEach(([k, getter]) => {
-    if (!k.includes(".")) values[k] = getter();
+function renderSubmitFooter(schema: any) {
+  if (schema.submitMode !== "explicit" && schema.submitMode !== "both") return;
+  const shell = document.getElementById("formApp")!;
+  const footer = el("div", { className: "form-footer" });
+  const cancel = el("button", { className: "btn btn-ghost", textContent: schema.cancelLabel || "Cancel" }) as HTMLButtonElement;
+  const submit = el("button", { className: "btn btn-primary", textContent: schema.submitLabel || "Submit" }) as HTMLButtonElement;
+  cancel.type = "button";
+  submit.type = "button";
+  cancel.addEventListener("click", async () => {
+    submitStatus = "cancelled";
+    await updateStructuredModelContext("cancelled");
+    await app.sendMessage({
+      role: "user",
+      content: [{ type: "text", text: JSON.stringify({ status: "cancelled", values: getValues() }, null, 2) }],
+    });
+    void app.requestTeardown();
   });
-  return values;
+  submit.addEventListener("click", async () => {
+    const snapshot = buildFormContext("submitted");
+    if (!snapshot.validation.valid) {
+      await updateStructuredModelContext("editing");
+      toast("Please fix the highlighted fields.");
+      findFieldGroup(snapshot.validation.issues[0]?.id || "")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      return;
+    }
+    submitStatus = "submitted";
+    await app.updateModelContext({
+      structuredContent: snapshot,
+      content: [{ type: "text", text: JSON.stringify(snapshot, null, 2) }],
+    });
+    await app.sendMessage({
+      role: "user",
+      content: [{ type: "text", text: JSON.stringify({ status: "submitted", values: snapshot.values }, null, 2) }],
+    });
+    void app.requestTeardown();
+  });
+  footer.append(cancel, submit);
+  shell.appendChild(footer);
 }
 
 // ===== DEMO SCHEMA (standalone / fallback) =====
@@ -562,35 +961,17 @@ const DEMO_SCHEMA = {
 // If you register after connect(), you will miss the initial tool result.
 
 const app = new App({ name: "Structured Input", version: "0.1.0" });
+bindFormListeners();
 
 // Receive the tool result with the form schema in structuredContent
 app.ontoolresult = (result) => {
   const schema = (result.structuredContent ?? result) as Record<string, unknown>;
-  if ((schema as any).kind === "image-result") {
-    renderImageResult(schema);
+  if (typeof (schema as any).kind === "string" && ((schema as any).kind as string).endsWith("-result")) {
+    renderResult(schema);
+  } else if ((schema as any).modality || (schema as any).type === "table") {
+    renderResult(schema);
   } else if (schema.fields) {
     renderForm(schema);
-
-    // Watch for value changes and update model context
-    // Use a debounced approach — send context update on user interactions
-    const body = document.getElementById("formBody")!;
-    body.addEventListener("change", () => {
-      void app.updateModelContext({
-        content: [
-          { type: "text", text: `Form values updated: ${JSON.stringify(getValues())}` },
-        ],
-      });
-    });
-    body.addEventListener("click", () => {
-      // Debounce click-based changes (chips, toggles, ratings, etc.)
-      setTimeout(() => {
-        void app.updateModelContext({
-          content: [
-            { type: "text", text: `Form values updated: ${JSON.stringify(getValues())}` },
-          ],
-        });
-      }, 100);
-    });
   }
 };
 

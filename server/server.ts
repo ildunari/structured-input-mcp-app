@@ -5,6 +5,7 @@ import {
   registerAppTool,
   RESOURCE_MIME_TYPE,
 } from "@modelcontextprotocol/ext-apps/server";
+import { formSchema } from "./schema.js";
 
 const APP_RESOURCE_URI = "ui://structured-input/app";
 
@@ -62,17 +63,7 @@ export function createServer(appHtml: string, options: CreateServerOptions = {})
         "Supports: text, longtext, number, slider, range, single-select, multi-select, " +
         "checklist, ranked, rating, color, date, date-range, boolean, confirm.",
       inputSchema: {
-        schema: z
-          .object({
-            title: z.string().optional().describe("Form heading"),
-            description: z
-              .string()
-              .optional()
-              .describe("Brief context shown below the title"),
-            fields: z
-              .array(z.record(z.string(), z.unknown()))
-              .describe("Array of field definitions"),
-          })
+        schema: formSchema
           .describe("The form schema defining what fields to render"),
       },
       _meta: { ui: { resourceUri: APP_RESOURCE_URI } },
