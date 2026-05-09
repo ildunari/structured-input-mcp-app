@@ -510,6 +510,8 @@ function renderForm(schema: any) {
     group.appendChild(renderer(f));
     body.appendChild(group);
   });
+
+  requestHostResize();
 }
 
 // ===== GET ALL VALUES =====
