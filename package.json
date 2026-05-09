@@ -7,7 +7,7 @@
     "dev": "concurrently \"vite build --watch\" \"tsc --watch --project tsconfig.server.json\"",
     "build": "vite build && tsc --project tsconfig.server.json",
     "typecheck": "tsc --project tsconfig.json --noEmit && tsc --project tsconfig.server.json --noEmit",
-    "test": "vitest run test && npm run typecheck",
+    "test": "vitest run --config vitest.config.ts && npm run typecheck",
     "start": "node dist/main.js --stdio",
     "start:http": "node dist/main.js",
     "deploy": "npm run build && wrangler deploy",
