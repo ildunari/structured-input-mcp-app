@@ -287,8 +287,21 @@ export const formSchema = z
   .object({
     title: z.string().optional(),
     description: z.string().optional(),
+    density: z.enum(["compact", "cozy", "comfortable", "comfy"]).optional(),
+    layout: z.enum(["stacked", "two-column"]).optional(),
+    submitMode: z.enum(["implicit", "explicit", "both"]).optional(),
+    submitLabel: z.string().optional(),
+    cancelLabel: z.string().optional(),
+    tokens: z
+      .object({
+        accent: z.string().optional(),
+        danger: z.string().optional(),
+      })
+      .strict()
+      .optional(),
     fields: z.array(fieldSchema),
   })
+  .strict()
   .superRefine((schema, ctx) => {
     const fieldIndexes = new Map<string, number>();
 

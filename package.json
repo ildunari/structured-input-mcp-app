@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "concurrently \"vite build --watch\" \"tsc --watch --project tsconfig.server.json\"",
     "build": "vite build && tsc --project tsconfig.server.json",
-    "test": "vitest run --root .",
+    "typecheck": "tsc --project tsconfig.json --noEmit && tsc --project tsconfig.server.json --noEmit",
+    "test": "vitest run test && npm run typecheck",
     "start": "node dist/main.js --stdio",
     "start:http": "node dist/main.js",
     "deploy": "npm run build && wrangler deploy",
