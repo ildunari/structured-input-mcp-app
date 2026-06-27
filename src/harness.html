@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Structured Input Harness</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f5f1e8;
+    --panel: #ffffff;
+    --border: #dedbd2;
+    --text: #26231f;
+    --muted: #6e6960;
+    --accent: #c96442;
+    --button: #faf9f6;
+    --editor: #fbfaf7;
+    --status: #f1eee7;
+    --preview-bg: #fbf7ef;
+    --shadow: 0 12px 34px rgba(35, 31, 25, 0.08);
+    --tool-label: #6f6a62;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #171614;
+    --panel: #211f1c;
+    --border: #37332d;
+    --text: #f1ede4;
+    --muted: #b4aa9b;
+    --accent: #d47856;
+    --button: #2a2722;
+    --editor: #191815;
+    --status: #2a2620;
+    --preview-bg: #12110f;
+    --shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+    --tool-label: #b4aa9b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: 24px;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .controls,
+  .preview-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+  }
+
+  .controls {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .button-row {
+    display: grid;
+    gap: 8px;
+  }
+
+  .sample-picker {
+    display: grid;
+    gap: 8px;
+  }
+
+  .sample-picker label,
+  .editor-label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  select {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0 34px 0 12px;
+    background: var(--button);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .sample-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  button {
+    min-height: 38px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--button);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  button.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+  .sample-grid button {
+    min-height: 32px;
+    padding: 0 8px;
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .theme-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--button);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .theme-switch input {
+    width: 42px;
+    height: 24px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 260px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    font: 12px/1.45 ui-monospace, "SF Mono", Menlo, monospace;
+    color: var(--text);
+    background: var(--editor);
+  }
+
+  .status {
+    min-height: 36px;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--status);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: pre-wrap;
+  }
+
+  .preview-wrap {
+    padding: 24px;
+    min-width: 0;
+  }
+
+  .claude-column {
+    width: min(100%, 720px);
+    min-height: 620px;
+    margin: 0 auto;
+    padding: 28px;
+    border-radius: 16px;
+    background: var(--preview-bg);
+  }
+
+  .tool-label {
+    margin: 0 auto 10px;
+    width: min(100%, 480px);
+    color: var(--tool-label);
+    font-size: 12px;
+  }
+
+  iframe {
+    display: block;
+    width: min(100%, 480px);
+    height: 560px;
+    margin: 0 auto;
+    border: 0;
+    border-radius: 18px;
+    background: transparent;
+    overflow: hidden;
+  }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .preview-wrap { order: -1; }
+  }
+</style>
+</head>
+<body>
+  <main class="layout">
+    <section class="controls">
+      <h1>Structured Input Harness</h1>
+      <p>Local fake MCP host for testing the iframe app without going through Claude.ai.</p>
+
+      <label class="theme-switch">
+        <span>Dark mode</span>
+        <input id="themeToggle" type="checkbox" role="switch" />
+      </label>
+
+      <div class="sample-picker">
+        <label for="sampleSelect">Samples</label>
+        <select id="sampleSelect"></select>
+        <div class="sample-grid" id="sampleButtons" aria-label="Sample shortcuts"></div>
+      </div>
+
+      <div class="button-row">
+        <button id="reloadFrame">Reload App Frame</button>
+      </div>
+
+      <div class="editor-label">Custom JSON</div>
+      <textarea id="schemaEditor" spellcheck="false"></textarea>
+      <button class="primary" id="sendCustom">Send JSON Above</button>
+      <div class="status" id="status">Starting harness...</div>
+    </section>
+
+    <section class="preview-wrap">
+      <div class="claude-column">
+        <div class="tool-label">Structured Output · collect_structured_input</div>
+        <iframe id="appFrame" src="./mcp-app.html" title="Structured Input MCP App preview"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./harness.ts"></script>
+</body>
+</html>

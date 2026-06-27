@@ -11,6 +11,7 @@ const ICONS = {
 
 // ===== STATE =====
 const state: Record<string, () => unknown> = {};
+let connectedToHost = false;
 
 // ===== HELPERS =====
 function el(tag: string, props: Record<string, unknown> = {}): HTMLElement {
@@ -35,14 +36,24 @@ function parseImageAspect(size?: string): string | null {
 }
 
 function requestHostResize() {
+  if (!connectedToHost) return;
+
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      const shell = document.getElementById("formApp");
+      const rect = shell?.getBoundingClientRect();
+      const width = rect?.width ?? (document.documentElement.scrollWidth || window.innerWidth);
+      const height = rect?.height ?? document.documentElement.scrollHeight;
       void app.sendSizeChanged({
-        width: Math.ceil(document.documentElement.scrollWidth || window.innerWidth),
-        height: Math.ceil(document.documentElement.scrollHeight),
+        width: Math.ceil(width + 4),
+        height: Math.ceil(height + 4),
       });
     });
   });
+}
+
+function clearState() {
+  Object.keys(state).forEach((key) => delete state[key]);
 }
 
 // ===== SLIDER INIT =====
@@ -103,35 +114,177 @@ function initRange(wrap: HTMLElement, defs: number[], lMin: HTMLElement, lMax: H
 }
 
 // ===== DRAG INIT =====
-function initDrag(ul: HTMLElement) {
-  let dragEl: HTMLElement | null = null;
-  ul.querySelectorAll(".ranked-item:not(.locked)").forEach((item) => {
-    const htmlItem = item as HTMLElement;
-    htmlItem.addEventListener("dragstart", (e) => { dragEl = htmlItem; htmlItem.style.opacity = "0.4"; (e as DragEvent).dataTransfer!.effectAllowed = "move"; });
-    htmlItem.addEventListener("dragend", () => { htmlItem.style.opacity = "1"; dragEl = null; renum(ul); });
-    htmlItem.addEventListener("dragover", (e) => { e.preventDefault(); (e as DragEvent).dataTransfer!.dropEffect = "move"; });
-    htmlItem.addEventListener("drop", (e) => {
-      e.preventDefault();
-      if (dragEl && dragEl !== htmlItem) {
-        const items = [...ul.children];
-        const fi = items.indexOf(dragEl), ti = items.indexOf(htmlItem);
-        fi < ti ? htmlItem.after(dragEl) : htmlItem.before(dragEl);
-      }
-      renum(ul);
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function rankedItems(ul: HTMLElement): HTMLElement[] {
+  return [...ul.querySelectorAll<HTMLElement>(".ranked-item")];
+}
+
+function captureRankedPositions(ul: HTMLElement): Map<HTMLElement, DOMRect> {
+  return new Map(rankedItems(ul).map((item) => [item, item.getBoundingClientRect()]));
+}
+
+function animateRankedMove(ul: HTMLElement, first: Map<HTMLElement, DOMRect>, skip?: HTMLElement) {
+  if (reduceMotion) return;
+
+  rankedItems(ul).forEach((item) => {
+    if (item === skip) return;
+    const before = first.get(item);
+    if (!before) return;
+
+    const after = item.getBoundingClientRect();
+    const dx = before.left - after.left;
+    const dy = before.top - after.top;
+    if (!dx && !dy) return;
+
+    item.classList.add("moving");
+    item.style.transition = "none";
+    item.style.transform = `translate(${dx}px, ${dy}px)`;
+
+    requestAnimationFrame(() => {
+      item.style.transition = "";
+      item.style.transform = "";
     });
-    htmlItem.addEventListener("touchstart", () => { dragEl = htmlItem; }, { passive: true });
-    htmlItem.addEventListener("touchmove", (e) => {
-      if (!dragEl) return; e.preventDefault();
-      const t = (e as TouchEvent).touches[0];
-      for (const o of [...ul.children]) {
-        if (o === dragEl) continue;
-        const r = (o as HTMLElement).getBoundingClientRect();
-        const m = r.top + r.height / 2;
-        if (t.clientY < m && o.compareDocumentPosition(dragEl) & 4) { o.before(dragEl); break; }
-        if (t.clientY > m && o.compareDocumentPosition(dragEl) & 2) { o.after(dragEl); break; }
+
+    item.addEventListener("transitionend", () => item.classList.remove("moving"), { once: true });
+  });
+}
+
+function unlockedSegmentFor(item: HTMLElement): HTMLElement[] {
+  const all = rankedItems(item.parentElement as HTMLElement);
+  const index = all.indexOf(item);
+  let start = index;
+  let end = index + 1;
+
+  while (start > 0 && !all[start - 1].classList.contains("locked")) start--;
+  while (end < all.length && !all[end].classList.contains("locked")) end++;
+
+  return all.slice(start, end).filter((candidate) => !candidate.classList.contains("locked"));
+}
+
+function notifyRankedChange(ul: HTMLElement) {
+  ul.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function moveRankedItem(item: HTMLElement, direction: -1 | 1): boolean {
+  const ul = item.parentElement as HTMLElement;
+  const segment = unlockedSegmentFor(item);
+  const index = segment.indexOf(item);
+  const target = segment[index + direction];
+  if (!target) return false;
+
+  const first = captureRankedPositions(ul);
+  direction < 0 ? target.before(item) : target.after(item);
+  renum(ul);
+  animateRankedMove(ul, first, item);
+  notifyRankedChange(ul);
+  return true;
+}
+
+function reorderRankedAtPointer(ul: HTMLElement, dragEl: HTMLElement, centerY: number): boolean {
+  const segment = unlockedSegmentFor(dragEl);
+  const first = captureRankedPositions(ul);
+  const target = segment.find((item) => item !== dragEl && centerY < item.getBoundingClientRect().top + item.getBoundingClientRect().height / 2);
+
+  if (target) {
+    if (dragEl.nextElementSibling === target) return false;
+    target.before(dragEl);
+  } else {
+    const last = segment.at(-1);
+    if (!last || last === dragEl) return false;
+    last.after(dragEl);
+  }
+
+  renum(ul);
+  animateRankedMove(ul, first, dragEl);
+  return true;
+}
+
+function initDrag(ul: HTMLElement) {
+  rankedItems(ul).forEach((item) => {
+    if (item.classList.contains("locked")) return;
+
+    const handle = item.querySelector<HTMLElement>(".drag-handle");
+    if (!handle) return;
+
+    let activePointerId: number | null = null;
+    let startY = 0;
+    let moved = false;
+    let raf = 0;
+    let lastY = 0;
+    let grabOffsetY = 0;
+    let dragOffsetY = 0;
+
+    const positionDraggedRow = () => {
+      const rect = item.getBoundingClientRect();
+      const layoutTop = rect.top - dragOffsetY;
+      const desiredTop = lastY - grabOffsetY;
+      dragOffsetY = desiredTop - layoutTop;
+      item.style.transform = `translateY(${dragOffsetY}px)`;
+    };
+
+    const updateDrag = () => {
+      raf = 0;
+      const rect = item.getBoundingClientRect();
+      const desiredCenterY = lastY - grabOffsetY + rect.height / 2;
+      if (reorderRankedAtPointer(ul, item, desiredCenterY)) {
+        moved = true;
       }
-    }, { passive: false });
-    htmlItem.addEventListener("touchend", () => { dragEl = null; renum(ul); });
+      positionDraggedRow();
+    };
+
+    const endDrag = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      activePointerId = null;
+      ul.classList.remove("dragging");
+      item.classList.remove("dragging");
+      item.style.transform = "";
+      dragOffsetY = 0;
+      renum(ul);
+      if (moved) notifyRankedChange(ul);
+    };
+
+    handle.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      activePointerId = event.pointerId;
+      startY = event.clientY;
+      lastY = event.clientY;
+      grabOffsetY = event.clientY - item.getBoundingClientRect().top;
+      dragOffsetY = 0;
+      moved = false;
+      item.classList.add("dragging");
+      ul.classList.add("dragging");
+      handle.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+
+    handle.addEventListener("pointermove", (event) => {
+      if (activePointerId !== event.pointerId) return;
+      lastY = event.clientY;
+      if (Math.abs(lastY - startY) <= 3) return;
+      moved = true;
+      if (raf) return;
+
+      raf = requestAnimationFrame(updateDrag);
+      event.preventDefault();
+    });
+
+    handle.addEventListener("pointerup", (event) => {
+      if (activePointerId !== event.pointerId) return;
+      endDrag();
+    });
+
+    handle.addEventListener("pointercancel", (event) => {
+      if (activePointerId !== event.pointerId) return;
+      endDrag();
+    });
+
+    handle.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      event.preventDefault();
+      moveRankedItem(item, event.key === "ArrowUp" ? -1 : 1);
+    });
   });
 }
 function renum(ul: HTMLElement) { ul.querySelectorAll(".rank-num").forEach((n, i) => (n.textContent = String(i + 1))); }
@@ -267,14 +420,21 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
     f.items.forEach((it: any, i: number) => {
       const li = el("li", { className: "ranked-item" + (it.locked ? " locked" : "") });
       li.dataset.id = it.id;
-      if (!it.locked) (li as HTMLElement).draggable = true;
-      const handle = el("div", { className: "drag-handle" }); handle.innerHTML = ICONS.drag;
+      const handle = el("button", { className: "drag-handle", type: "button" }) as HTMLButtonElement;
+      handle.innerHTML = ICONS.drag;
+      if (it.locked) {
+        handle.disabled = true;
+        handle.setAttribute("aria-label", "Locked item");
+      } else {
+        handle.setAttribute("aria-label", `Drag ${it.label}`);
+        handle.title = "Drag to reorder";
+      }
       const num = el("div", { className: "rank-num", textContent: String(i + 1) });
       const label = el("span", { className: "ranked-label", textContent: it.label });
       li.append(handle, num, label);
       if (f.removable && !it.locked) {
         const rm = el("button", { className: "ranked-rm" }); rm.innerHTML = ICONS.close;
-        rm.addEventListener("click", () => { li.remove(); renum(ul); });
+        rm.addEventListener("click", () => { li.remove(); renum(ul); notifyRankedChange(ul); });
         li.appendChild(rm);
       }
       ul.appendChild(li);
@@ -399,12 +559,11 @@ const R: Record<string, (f: any) => HTMLElement | DocumentFragment> = {
 function renderImageResult(result: any) {
   const body = document.getElementById("formBody")!;
   body.innerHTML = "";
+  clearState();
   document.body.classList.add("image-result-view");
   document.getElementById("formApp")?.classList.add("result-shell");
 
   const wrap = el("div", { className: "image-result" });
-  const header = el("div", { className: "image-header" });
-  header.appendChild(el("h1", { className: "form-title", textContent: result.title || "Generated image" }));
 
   const frame = el("div", { className: "image-frame" });
   const imageAspect = parseImageAspect(result.size);
@@ -413,29 +572,58 @@ function renderImageResult(result: any) {
   img.addEventListener("load", requestHostResize, { once: true });
   frame.appendChild(img);
 
+  const imageDetails = [
+    ["Model", result.model],
+    ["Size", result.size],
+    ["Quality", result.quality],
+    ["Format", result.format],
+  ].filter(([, value]) => value);
+
   let promptDialog: HTMLDialogElement | null = null;
-  if (result.prompt) {
+  if (result.prompt || imageDetails.length > 0) {
     const info = el("button", { className: "image-info-btn" }) as HTMLButtonElement;
     info.type = "button";
-    info.setAttribute("aria-label", "View prompt");
+    info.setAttribute("aria-label", "View image details");
     info.innerHTML = ICONS.info;
     frame.appendChild(info);
 
     promptDialog = el("dialog", { className: "prompt-dialog" }) as HTMLDialogElement;
     const dialogPanel = el("div", { className: "prompt-dialog-panel" });
     const close = el("button", { className: "prompt-dialog-close" }) as HTMLButtonElement;
+    const closePrompt = () => {
+      if (!promptDialog?.open) return;
+      promptDialog.classList.add("closing");
+      window.setTimeout(() => {
+        promptDialog?.classList.remove("closing");
+        promptDialog?.close();
+        requestHostResize();
+      }, 150);
+    };
     close.type = "button";
-    close.setAttribute("aria-label", "Close prompt");
+    close.setAttribute("aria-label", "Close details");
     close.innerHTML = ICONS.close;
-    close.addEventListener("click", () => promptDialog?.close());
-    dialogPanel.append(
-      close,
-      el("h2", { className: "prompt-dialog-title", textContent: "Prompt" }),
-      el("p", { className: "prompt-dialog-text", textContent: result.prompt })
-    );
+    close.addEventListener("click", closePrompt);
+    dialogPanel.append(close, el("h2", { className: "prompt-dialog-title", textContent: "Details" }));
+    if (result.prompt) {
+      dialogPanel.append(
+        el("div", { className: "prompt-section-label", textContent: "Prompt" }),
+        el("p", { className: "prompt-dialog-text", textContent: result.prompt })
+      );
+    }
+    if (imageDetails.length > 0) {
+      const details = el("dl", { className: "image-detail-list" });
+      imageDetails.forEach(([key, value]) => {
+        details.append(el("dt", { textContent: key }), el("dd", { textContent: String(value) }));
+      });
+      dialogPanel.appendChild(details);
+    }
     promptDialog.appendChild(dialogPanel);
     promptDialog.addEventListener("click", (event) => {
-      if (event.target === promptDialog) promptDialog?.close();
+      if (event.target === promptDialog) closePrompt();
+    });
+    promptDialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      closePrompt();
     });
     info.addEventListener("click", () => {
       if (typeof promptDialog?.showModal === "function") {
@@ -447,28 +635,18 @@ function renderImageResult(result: any) {
     });
   }
 
-  const meta = el("div", { className: "image-meta" });
-  [
-    ["Model", result.model],
-    ["Size", result.size],
-    ["Quality", result.quality],
-    ["Format", result.format],
-  ].forEach(([key, value]) => {
-    if (!value) return;
-    const pill = el("span", { className: "image-pill", textContent: `${key}: ${value}` });
-    meta.appendChild(pill);
-  });
-
   const actions = el("div", { className: "image-actions" });
-  const open = el("a", { className: "btn btn-primary", href: result.url, target: "_blank", rel: "noreferrer", textContent: "Open image" });
-  const copy = el("button", { className: "btn btn-ghost", textContent: "Copy URL" });
+  const download = el("a", { className: "btn btn-primary", href: result.url, download: result.id || "generated-image", textContent: "Save" });
+  const open = el("a", { className: "btn btn-ghost", href: result.url, target: "_blank", rel: "noreferrer", textContent: "Open" });
+  const copy = el("button", { className: "btn btn-ghost", textContent: "Copy" });
   copy.addEventListener("click", async () => {
     await navigator.clipboard.writeText(result.url);
     toast("Image URL copied");
   });
-  actions.append(open, copy);
+  actions.append(download, open, copy);
+  frame.appendChild(actions);
 
-  wrap.append(header, frame, meta, actions);
+  wrap.appendChild(frame);
   body.appendChild(wrap);
   if (promptDialog) body.appendChild(promptDialog);
   requestHostResize();
@@ -478,6 +656,7 @@ function renderImageResult(result: any) {
 function renderForm(schema: any) {
   const body = document.getElementById("formBody")!;
   body.innerHTML = "";
+  clearState();
   document.body.classList.remove("image-result-view");
   document.getElementById("formApp")?.classList.remove("result-shell");
 
@@ -525,23 +704,23 @@ function getValues(): Record<string, unknown> {
 
 // ===== DEMO SCHEMA (standalone / fallback) =====
 const DEMO_SCHEMA = {
-  title: "Configure Your Project",
-  description: "Set up parameters for your project.",
+  title: "Project setup",
+  description: "Choose the essentials.",
   fields: [
     { id: "name", type: "text", label: "Project Name", required: true, placeholder: "e.g. My Cool Project" },
-    { id: "desc", type: "longtext", label: "Description", description: "A brief overview of what this project does.", placeholder: "Tell us about your project..." },
+    { id: "desc", type: "longtext", label: "Description", placeholder: "What should this do?" },
     { id: "iterations", type: "number", label: "Max Iterations", default: 10, min: 1, max: 100, unit: "iterations" },
-    { id: "temperature", type: "slider", label: "Temperature", description: "Lower is focused, higher is creative.", min: 0, max: 2, step: 0.1, default: 0.7 },
-    { id: "tokens", type: "range", label: "Token Range", description: "Min and max output tokens.", min: 0, max: 4096, step: 64, default: [512, 2560] },
+    { id: "temperature", type: "slider", label: "Temperature", min: 0, max: 2, step: 0.1, default: 0.7 },
+    { id: "tokens", type: "range", label: "Token Range", min: 0, max: 4096, step: 64, default: [512, 2560] },
     { id: "model", type: "single-select", label: "Model", required: true, options: [{ value: "haiku", label: "Haiku" }, { value: "sonnet", label: "Sonnet" }, { value: "opus", label: "Opus" }], default: "sonnet" },
-    { id: "caps", type: "multi-select", label: "Capabilities", description: "Select all that apply.", options: [{ value: "code", label: "Code" }, { value: "vision", label: "Vision" }, { value: "tools", label: "Tools" }, { value: "search", label: "Search" }, { value: "artifacts", label: "Artifacts" }], default: ["code", "tools"] },
+    { id: "caps", type: "multi-select", label: "Capabilities", options: [{ value: "code", label: "Code" }, { value: "vision", label: "Vision" }, { value: "tools", label: "Tools" }, { value: "search", label: "Search" }, { value: "artifacts", label: "Artifacts" }], default: ["code", "tools"] },
     { id: "files", type: "checklist", label: "Files to Include", showSelectAll: true, items: [
       { id: "main", label: "main.ts", preview: "2.4 KB", group: "Source Files" },
       { id: "config", label: "config.json", preview: "860 B", group: "Source Files" },
       { id: "utils", label: "utils.ts", preview: "1.1 KB", group: "Source Files" },
       { id: "readme", label: "README.md", preview: "3.2 KB", group: "Docs" },
     ], default: ["main", "utils"] },
-    { id: "priority", type: "ranked", label: "Priority Order", description: "Drag to reorder.", removable: true, items: [
+    { id: "priority", type: "ranked", label: "Priority Order", removable: true, items: [
       { id: "perf", label: "Performance" }, { id: "safety", label: "Safety" }, { id: "cost", label: "Cost Efficiency" }, { id: "latency", label: "Latency" },
     ] },
     { id: "importance", type: "rating", label: "Importance", max: 5, default: 3 },
@@ -563,7 +742,7 @@ const DEMO_SCHEMA = {
 // CRITICAL: Register ALL handlers BEFORE calling app.connect().
 // If you register after connect(), you will miss the initial tool result.
 
-const app = new App({ name: "Structured Input", version: "0.1.0" });
+const app = new App({ name: "Structured Input", version: "0.1.0" }, {}, { autoResize: false });
 
 // Receive the tool result with the form schema in structuredContent
 app.ontoolresult = (result) => {
@@ -576,14 +755,14 @@ app.ontoolresult = (result) => {
     // Watch for value changes and update model context
     // Use a debounced approach — send context update on user interactions
     const body = document.getElementById("formBody")!;
-    body.addEventListener("change", () => {
+    body.onchange = () => {
       void app.updateModelContext({
         content: [
           { type: "text", text: `Form values updated: ${JSON.stringify(getValues())}` },
         ],
       });
-    });
-    body.addEventListener("click", () => {
+    };
+    body.onclick = () => {
       // Debounce click-based changes (chips, toggles, ratings, etc.)
       setTimeout(() => {
         void app.updateModelContext({
@@ -592,7 +771,7 @@ app.ontoolresult = (result) => {
           ],
         });
       }, 100);
-    });
+    };
   }
 };
 
@@ -614,13 +793,21 @@ app.onhostcontextchanged = (ctx) => {
   }
 };
 
-// Connect to host (after all handlers are set)
-await app.connect();
+// Connect to host (after all handlers are set). In local standalone mode there
+// may be no MCP host, so keep the demo fallback alive instead of crashing.
+try {
+  await app.connect();
+  connectedToHost = true;
+} catch (error) {
+  // Standalone browser previews do not provide the MCP host RPC surface.
+}
 
 // Apply initial theme
-const ctx = app.getHostContext();
-if (ctx?.theme) {
-  document.documentElement.setAttribute("data-theme", ctx.theme);
+if (connectedToHost) {
+  const ctx = app.getHostContext();
+  if (ctx?.theme) {
+    document.documentElement.setAttribute("data-theme", ctx.theme);
+  }
 }
 
 // Standalone fallback: if no tool result arrives within 500ms, render demo

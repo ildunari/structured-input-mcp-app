@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite build --watch\" \"tsc --watch --project tsconfig.server.json\"",
+    "dev:harness": "vite --host 127.0.0.1 --port 5173",
     "build": "vite build && tsc --project tsconfig.server.json",
     "start": "node dist/main.js --stdio",
     "start:http": "node dist/main.js",
