@@ -1,8 +1,17 @@
-import { App } from "@modelcontextprotocol/ext-apps";
+import { App, applyDocumentTheme, applyHostFonts, applyHostStyleVariables } from "@modelcontextprotocol/ext-apps";
+import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
+
+// mcp-app-kit: host theme + style variables + fonts, re-applied on every change.
+function applyHostContext(ctx: Partial<McpUiHostContext> | undefined): void {
+  if (!ctx) return;
+  if (ctx.theme) { applyDocumentTheme(ctx.theme); document.documentElement.setAttribute("data-theme", ctx.theme); }
+  if (ctx.styles?.variables) applyHostStyleVariables(ctx.styles.variables);
+  if (ctx.styles?.css?.fonts) applyHostFonts(ctx.styles.css.fonts);
+}
 
 // ===== SVG ICONS =====
 const ICONS = {
-  check: '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  check: '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   drag: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg>',
   close: '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>',
   info: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 7.4v3.7"/><path d="M8 4.9h.01"/></svg>',
@@ -787,11 +796,7 @@ app.ontoolinputpartial = (params) => {
 };
 
 // Adapt to host theme changes
-app.onhostcontextchanged = (ctx) => {
-  if (ctx.theme) {
-    document.documentElement.setAttribute("data-theme", ctx.theme);
-  }
-};
+app.onhostcontextchanged = (ctx) => applyHostContext(ctx);
 
 // Connect to host (after all handlers are set). In local standalone mode there
 // may be no MCP host, so keep the demo fallback alive instead of crashing.
@@ -804,10 +809,7 @@ try {
 
 // Apply initial theme
 if (connectedToHost) {
-  const ctx = app.getHostContext();
-  if (ctx?.theme) {
-    document.documentElement.setAttribute("data-theme", ctx.theme);
-  }
+  applyHostContext(app.getHostContext());
 }
 
 // Standalone fallback: if no tool result arrives within 500ms, render demo

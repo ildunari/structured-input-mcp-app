@@ -2,62 +2,101 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<meta name="color-scheme" content="light dark"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Structured Input — MCP App</title>
 <style>
-/* ===== HYBRID TOKENS: LIQUID GLASS + WARM UNDERTONE ===== */
+/* mcp-app-kit:tokens BEGIN v1.0.0 a7c173da6273 */
+/* mcp-app-kit tokens: host style variables with Claude-default fallbacks. */
+/* Tokens: host style variables first (MCP Apps spec names, as sent by Claude),
+   fallbacks are Claude's published light/dark values so every host looks the same.
+   Never hardcode a color in a view; use these. */
+:root{
+  color-scheme: light dark;
+  /* Cards are transparent so the conversation shows through (Claude's guidance);
+     set --card on .k to paint a surface in hosts that want one. */
+  --card: transparent;
+  --bg: var(--color-background-primary, light-dark(#ffffff,#30302e));
+  /* Inner panels are a tint of the text color, so they stay visible on any host surface
+     (Claude's secondary background equals its dark chat surface). */
+  --panel: color-mix(in srgb, var(--fg) 5%, transparent);
+  --panel2: color-mix(in srgb, var(--fg) 10%, transparent);
+  --fg: var(--color-text-primary, light-dark(#141413,#faf9f5));
+  --fg2: var(--color-text-secondary, light-dark(#3d3d3a,#c2c0b6));
+  --fg3: var(--color-text-tertiary, light-dark(#73726c,#9c9a92));
+  --line: var(--color-border-tertiary, light-dark(rgba(31,30,29,.15),rgba(222,220,209,.15)));
+  --line2: var(--color-border-primary, light-dark(rgba(31,30,29,.4),rgba(222,220,209,.4)));
+  --edge: var(--color-border-tertiary, light-dark(rgba(31,30,29,.15),rgba(222,220,209,.15)));
+  --info: var(--color-text-info, light-dark(#3266ad,#80aadd));
+  --info-bg: var(--color-background-info, light-dark(#d6e4f6,#253e5f));
+  --ok: var(--color-text-success, light-dark(#265b19,#7ab948));
+  --ok-bg: var(--color-background-success, light-dark(#e9f1dc,#1b4614));
+  --warn: var(--color-text-warning, light-dark(#5a4815,#d1a041));
+  --warn-bg: var(--color-background-warning, light-dark(#f6eedf,#483a0f));
+  --bad: var(--color-text-danger, light-dark(#7f2c28,#ee8884));
+  --bad-bg: var(--color-background-danger, light-dark(#f7ecec,#602a28));
+  --ring: var(--color-ring-info, light-dark(rgba(50,102,173,.5),rgba(128,170,221,.5)));
+  --pri-bg: var(--color-background-inverse, light-dark(#141413,#faf9f5));
+  --pri-fg: var(--color-text-inverse, light-dark(#ffffff,#141413));
+  --sans: var(--font-sans, "Anthropic Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  --mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  --t-sm: var(--font-text-sm-size, 14px); --t-md: var(--font-text-md-size, 16px); --t-lg: 18px;
+  --w-strong: var(--font-weight-semibold, 600); --w-mid: var(--font-weight-medium, 500);
+  --hair: var(--border-width-regular, .5px);
+  --r-card: var(--border-radius-xl, 12px); --r-panel: var(--border-radius-lg, 10px);
+  --r-ctl: var(--border-radius-md, 8px); --r-full: var(--border-radius-full, 9999px);
+  --shadow: var(--shadow-hairline, none);
+}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+/* mcp-app-kit:tokens END */
+
+/* Form palette mapped onto mcp-app-kit tokens (host variables, Claude fallbacks). */
 :root {
-  /* Warm undertone (Anthropic-inspired, not dominant) */
-  --warm-near-black: #1a1918;
-  --warm-charcoal: #3d3b38;
-  --warm-mid: #57544f;
-  --warm-stone: #7a7770;
-  --warm-sand: #a8a49a;
-  --warm-cream: #e8e5dc;
-  --warm-ivory: #f5f3ed;
-  --warm-white: #faf9f6;
+  --warm-near-black: var(--fg);
+  --warm-charcoal: var(--fg);
+  --warm-mid: var(--fg2);
+  --warm-stone: var(--fg3);
+  --warm-sand: var(--line2);
+  --warm-cream: var(--panel);
+  --warm-ivory: var(--panel);
+  --warm-white: var(--pri-fg);
 
-  /* Accent: terracotta softened for glass context */
-  --accent: #c96442;
-  --accent-hover: #b85a3a;
-  --accent-soft: rgba(201, 100, 66, 0.15);
-  --accent-text: #faf9f6;
+  --accent: var(--pri-bg);
+  --accent-hover: color-mix(in srgb, var(--pri-bg) 88%, var(--fg3));
+  --accent-soft: var(--panel2);
+  --accent-text: var(--pri-fg);
 
-  /* Semantic */
-  --danger: #c0392b;
-  --danger-soft: rgba(192, 57, 43, 0.1);
-  --focus: #c96442;
-  --focus-ring: rgba(201, 100, 66, 0.22);
-  --success: #27ae60;
+  --danger: var(--bad);
+  --danger-soft: var(--bad-bg);
+  --focus: var(--info);
+  --focus-ring: var(--ring);
+  --success: var(--ok);
 
-  /* ---- GLASS CORE ---- */
-  --glass-bg: rgba(255, 252, 246, 0.72);
-  --glass-bg-strong: rgba(255, 252, 246, 0.86);
-  --glass-border: rgba(94, 84, 70, 0.16);
-  --glass-border-subtle: rgba(94, 84, 70, 0.12);
-  --glass-highlight: rgba(255, 255, 255, 0.6);
-  --glass-shadow: 0 18px 48px rgba(62, 52, 39, 0.14), 0 0 0 0.5px rgba(255,255,255,0.5);
-  --glass-blur: 24px;
-  --glass-saturate: 1.15;
+  --glass-bg: transparent;
+  --glass-bg-strong: var(--bg);
+  --glass-border: var(--edge);
+  --glass-border-subtle: var(--line);
+  --glass-highlight: transparent;
+  --glass-shadow: var(--shadow);
+  --glass-blur: 0px;
+  --glass-saturate: 1;
 
-  /* Inner surfaces — semi-translucent, glass-within-glass */
-  --surface-input: rgba(255, 255, 255, 0.78);
-  --surface-input-focus: rgba(255, 255, 255, 0.92);
-  --surface-card: rgba(255, 255, 255, 0.62);
-  --surface-card-hover: rgba(255, 255, 255, 0.78);
-  --surface-chip: rgba(255, 255, 255, 0.46);
-  --surface-chip-hover: rgba(255, 255, 255, 0.70);
-  --control-border: rgba(87, 75, 61, 0.12);
-  --control-shadow: inset 0 0.5px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(55,45,34,0.04);
-  --slider-track: rgba(87, 75, 61, 0.18);
-  --slider-track-shadow: inset 0 1px 2px rgba(55,45,34,0.08);
-  --thumb-bg: #fffaf2;
-  --scrollbar-thumb: rgba(87, 75, 61, 0.24);
+  --surface-input: var(--panel);
+  --surface-input-focus: var(--panel2);
+  --surface-card: var(--panel);
+  --surface-card-hover: var(--panel2);
+  --surface-chip: var(--panel);
+  --surface-chip-hover: var(--panel2);
+  --control-border: var(--line);
+  --control-shadow: none;
+  --slider-track: var(--panel2);
+  --slider-track-shadow: none;
+  --thumb-bg: var(--bg);
+  --scrollbar-thumb: var(--line2);
 
-  /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-  --font-serif: 'Georgia', 'Times New Roman', serif;
-  --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
 
   /* Dynamic spacing — scales with container */
   --sp-unit: clamp(10px, 2.2cqi, 16px);
@@ -76,53 +115,15 @@
   --fs-xl: clamp(1.1rem, 3.2cqi, 1.35rem);
 
   /* Radii — scale with container */
-  --radius-sm: clamp(6px, 1.2cqi, 8px);
-  --radius-md: clamp(10px, 2cqi, 14px);
-  --radius-lg: clamp(16px, 3cqi, 22px);
+  --radius-sm: var(--r-ctl);
+  --radius-md: var(--r-panel);
+  --radius-lg: var(--r-card);
   --radius-pill: 9999px;
 
   /* Touch targets */
   --touch-min: clamp(44px, 8cqi, 48px);
 }
 
-:root[data-theme="dark"] {
-  --warm-near-black: #f4efe6;
-  --warm-charcoal: #e3dacd;
-  --warm-mid: #c9bdad;
-  --warm-stone: #aa9e90;
-  --warm-sand: #6f675d;
-  --warm-cream: #2c2925;
-  --warm-ivory: #211f1c;
-  --warm-white: #f4efe6;
-
-  --accent: #d97856;
-  --accent-hover: #e08a6b;
-  --accent-soft: rgba(217, 120, 86, 0.18);
-  --accent-text: #201713;
-  --focus: #d97856;
-  --focus-ring: rgba(217, 120, 86, 0.26);
-
-  --glass-bg: rgba(32, 29, 25, 0.78);
-  --glass-bg-strong: rgba(42, 38, 33, 0.88);
-  --glass-border: rgba(255,255,255,0.15);
-  --glass-border-subtle: rgba(255,255,255,0.11);
-  --glass-highlight: rgba(255,255,255,0.20);
-  --glass-shadow: 0 20px 54px rgba(0,0,0,0.34), 0 0 0 0.5px rgba(255,255,255,0.12);
-  --glass-saturate: 1.05;
-
-  --surface-input: rgba(255,255,255,0.12);
-  --surface-input-focus: rgba(255,255,255,0.17);
-  --surface-card: rgba(255,255,255,0.09);
-  --surface-card-hover: rgba(255,255,255,0.14);
-  --surface-chip: rgba(255,255,255,0.08);
-  --surface-chip-hover: rgba(255,255,255,0.13);
-  --control-border: rgba(255,255,255,0.14);
-  --control-shadow: inset 0 0.5px 0 rgba(255,255,255,0.12), 0 1px 2px rgba(0,0,0,0.18);
-  --slider-track: rgba(255,255,255,0.22);
-  --slider-track-shadow: inset 0 1px 2px rgba(0,0,0,0.25);
-  --thumb-bg: #f3ece1;
-  --scrollbar-thumb: rgba(255,255,255,0.28);
-}
 
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -168,35 +169,13 @@ body {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  border: 1px solid var(--glass-border);
+  border: var(--hair) solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
 
 /* Specular sheen */
-.form-shell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(ellipse at 18% 8%, var(--glass-highlight), rgba(255,255,255,0.08) 32%, transparent 55%),
-    linear-gradient(170deg, rgba(255,255,255,0.18) 0%, transparent 40%);
-  pointer-events: none;
-  z-index: 1;
-}
 
 /* Inner border highlight — specular rim */
-.form-shell::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow:
-    inset 1px 1px 0 rgba(255,255,255,0.5),
-    inset 0 0 6px rgba(255,255,255,0.2);
-  pointer-events: none;
-  z-index: 1;
-}
 
 /* ===== INLINE HEADER (inside scroll body) ===== */
 .form-header {
@@ -469,12 +448,12 @@ textarea.text-input { resize: vertical; min-height: 80px; }
   transition: all 0.2s;
 }
 
-.cl-item.on .cl-box { background: var(--accent); border-color: var(--accent); }
+.cl-item.on .cl-box { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .cl-box svg { width: 12px; height: 12px; opacity: 0; transition: opacity 0.15s; }
 .cl-item.on .cl-box svg { opacity: 1; }
 .cl-label { font-size: var(--fs-base); flex: 1; }
 .cl-meta { font-size: var(--fs-xs); font-family: var(--font-mono); color: var(--warm-stone);
-  padding: 2px 6px; background: rgba(255,255,255,0.2); border-radius: var(--radius-sm); }
+  padding: 2px 6px; background: var(--panel2); border-radius: var(--radius-sm); }
 
 /* Content plate — frosted card */
 .plate {
