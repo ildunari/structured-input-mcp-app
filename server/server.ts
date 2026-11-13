@@ -6,7 +6,7 @@ import {
   RESOURCE_MIME_TYPE,
 } from "@modelcontextprotocol/ext-apps/server";
 
-const APP_RESOURCE_URI = "ui://structured-input/app";
+const APP_RESOURCE_URI = "ui://structured-input/app-v2";
 
 export type GenerateImageArgs = {
   prompt: string;
@@ -45,6 +45,12 @@ export function createServer(appHtml: string, options: CreateServerOptions = {})
           uri: APP_RESOURCE_URI,
           mimeType: RESOURCE_MIME_TYPE,
           text: appHtml,
+          _meta: {
+            ui: {
+              prefersBorder: false,
+              csp: { connectDomains: [], resourceDomains: ["https://assets.claude.ai"] },
+            },
+          },
         },
       ],
     })
