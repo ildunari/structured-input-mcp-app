@@ -7,6 +7,12 @@ import {
 } from "@modelcontextprotocol/ext-apps/server";
 
 const APP_RESOURCE_URI = "ui://structured-input/app";
+// Some hosted catalogs omit the tool's widget metadata. Keep the same URI on
+// the result so those clients can still resolve the registered resource.
+const APP_WIDGET_META = {
+  ui: { resourceUri: APP_RESOURCE_URI },
+  "openai/outputTemplate": APP_RESOURCE_URI,
+};
 
 export type GenerateImageArgs = {
   prompt: string;
@@ -75,7 +81,7 @@ export function createServer(appHtml: string, options: CreateServerOptions = {})
           })
           .describe("The form schema defining what fields to render"),
       },
-      _meta: { ui: { resourceUri: APP_RESOURCE_URI } },
+      _meta: APP_WIDGET_META,
     },
     async ({ schema }) => ({
       // Model-facing content (small text summary)
@@ -86,6 +92,7 @@ export function createServer(appHtml: string, options: CreateServerOptions = {})
         },
       ],
       // View-facing data (delivered to iframe via postMessage)
+      _meta: APP_WIDGET_META,
       structuredContent: schema,
     })
   );
@@ -103,7 +110,7 @@ export function createServer(appHtml: string, options: CreateServerOptions = {})
           quality: z.enum(["low", "medium", "high", "auto"]).optional().describe("Generation quality. Default: medium."),
           format: z.enum(["png", "jpeg", "webp"]).optional().describe("Output image format. Default: png."),
         },
-        _meta: { ui: { resourceUri: APP_RESOURCE_URI } },
+        _meta: APP_WIDGET_META,
       },
       async (args) => {
         const result = await options.generateImage!({
@@ -120,6 +127,7 @@ export function createServer(appHtml: string, options: CreateServerOptions = {})
               text: `Generated image with GPT Image 2.\n\nURL: ${result.url}\nID: ${result.id}\nSize: ${result.size}\nQuality: ${result.quality}\nFormat: ${result.format}\nEstimated cost: $${result.estimatedCostUsd ?? "unknown"}\nMonthly cap: $${result.monthlyBudgetUsd ?? "10.00"}`,
             },
           ],
+          _meta: APP_WIDGET_META,
           structuredContent: {
             kind: "image-result",
             title: "GPT Image 2 result",
